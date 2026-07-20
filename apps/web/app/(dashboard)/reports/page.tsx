@@ -1,39 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { api, ApiError } from '@/lib/api';
-import type {
-  ComparisonResult,
-  HealthAnalysis,
-  HealthMetric,
-  HealthReport,
-} from '@/types/health';
+import type { ComparisonResult, HealthReport } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ReportCard } from '@/components/reports/ReportCard';
 import { ComparisonView } from '@/components/reports/ComparisonView';
-import { RiskBadge } from '@/components/reports/RiskBadge';
-import { StatusBadge } from '@/components/reports/StatusBadge';
-import { ActionPlanView } from '@/components/reports/ActionPlanView';
-import { formatDate, scoreColor } from '@/lib/utils';
-import Link from 'next/link';
+import { formatDate } from '@/lib/utils';
 
 export default function ReportsPage() {
   const { getToken } = useAuth();
   const [reports, setReports] = useState<HealthReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{
-    report: HealthReport;
-    metrics: HealthMetric[];
-    analysis: HealthAnalysis | null;
-    downloadUrl: string | null;
-  } | null>(null);
   const [reportAId, setReportAId] = useState('');
   const [reportBId, setReportBId] = useState('');
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
@@ -60,19 +44,6 @@ export default function ReportsPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      return;
-    }
-    void api
-      .getReport(() => getToken(), selectedId)
-      .then(setDetail)
-      .catch((err) =>
-        setError(err instanceof ApiError ? err.message : 'Failed to load report.'),
-      );
-  }, [getToken, selectedId]);
 
   const runComparison = async () => {
     if (!reportAId || !reportBId) return;
@@ -169,130 +140,9 @@ export default function ReportsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {reports.map((report) => (
-          <ReportCard
-            key={report.id}
-            report={report}
-            onView={() => setSelectedId(report.id)}
-          />
+          <ReportCard key={report.id} report={report} />
         ))}
       </div>
-
-      <Modal
-        open={Boolean(selectedId && detail)}
-        onClose={() => setSelectedId(null)}
-        title={detail?.report.file_name ?? 'Report'}
-      >
-        {detail ? (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-sm text-muted">
-                  Report date {formatDate(detail.report.report_date)}
-                </p>
-                <p
-                  className={`mt-2 font-mono text-4xl font-bold ${scoreColor(
-                    detail.analysis?.overall_health_score ?? null,
-                  )}`}
-                >
-                  {detail.analysis?.overall_health_score ?? '—'}
-                </p>
-              </div>
-              {detail.downloadUrl ? (
-                <a
-                  href={detail.downloadUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-accent-glow hover:text-accent"
-                >
-                  Download original PDF
-                </a>
-              ) : null}
-            </div>
-
-            <section>
-              <h3 className="mb-2 font-semibold">Summary</h3>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted">
-                {detail.analysis?.summary ?? 'No summary available.'}
-              </p>
-            </section>
-
-            <section>
-              <h3 className="mb-2 font-semibold">Things to watch</h3>
-              <div className="flex flex-wrap gap-2">
-                {(detail.analysis?.risks ?? []).map((risk) => (
-                  <RiskBadge key={risk} risk={risk} />
-                ))}
-              </div>
-            </section>
-
-            <ActionPlanView items={detail.analysis?.action_plan ?? []} />
-
-            <section className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h3 className="mb-2 font-semibold">Current focus areas</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-                  {(detail.analysis?.current_issues ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="mb-2 font-semibold">Keep an eye on</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-                  {(detail.analysis?.potential_issues ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="md:col-span-2">
-                <h3 className="mb-2 font-semibold">Looking good</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-                  {(detail.analysis?.positive_indicators ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="mb-3 font-semibold">Metrics</h3>
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-surface2 text-muted">
-                    <tr>
-                      <th className="px-3 py-2">Name</th>
-                      <th className="px-3 py-2">Value</th>
-                      <th className="px-3 py-2">Reference</th>
-                      <th className="px-3 py-2">Category</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.metrics.map((metric) => (
-                      <tr key={metric.id} className="border-t border-border">
-                        <td className="px-3 py-2">{metric.metric_name}</td>
-                        <td className="px-3 py-2 font-mono">
-                          {metric.metric_value ?? '—'} {metric.metric_unit}
-                        </td>
-                        <td className="px-3 py-2 font-mono text-muted">
-                          {metric.reference_min != null ||
-                          metric.reference_max != null
-                            ? `${metric.reference_min ?? '—'} – ${metric.reference_max ?? '—'}`
-                            : '—'}
-                        </td>
-                        <td className="px-3 py-2">{metric.metric_category}</td>
-                        <td className="px-3 py-2">
-                          <StatusBadge status={metric.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        ) : null}
-      </Modal>
     </div>
   );
 }

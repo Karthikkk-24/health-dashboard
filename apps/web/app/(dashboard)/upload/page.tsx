@@ -163,7 +163,7 @@ export default function UploadPage() {
             <span>{STATUS_COPY[activeStatus]}</span>
             {activeStatus === 'completed' && activeId ? (
               <Link
-                href="/reports"
+                href={`/reports/${activeId}`}
                 className="ml-auto text-accent-glow hover:text-accent"
               >
                 View analysis

@@ -1,11 +1,8 @@
-'use client';
-
 import Link from 'next/link';
 import { HealthReport } from '@/types/health';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { formatDate, scoreColor } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import { formatDate, scoreColor, cn } from '@/lib/utils';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-muted/20 text-muted',
@@ -14,13 +11,7 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'bg-danger/15 text-danger',
 };
 
-export function ReportCard({
-  report,
-  onView,
-}: {
-  report: HealthReport;
-  onView?: () => void;
-}) {
+export function ReportCard({ report }: { report: HealthReport }) {
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -46,22 +37,12 @@ export function ReportCard({
             {report.health_score ?? '—'}
           </p>
         </div>
-        {onView ? (
-          <button
-            type="button"
-            onClick={onView}
-            className="text-sm font-medium text-accent-glow hover:text-accent"
-          >
-            View analysis
-          </button>
-        ) : (
-          <Link
-            href="/reports"
-            className="text-sm font-medium text-accent-glow hover:text-accent"
-          >
-            Open reports
-          </Link>
-        )}
+        <Link
+          href={`/reports/${report.id}`}
+          className="text-sm font-medium text-accent-glow hover:text-accent"
+        >
+          View analysis
+        </Link>
       </div>
     </Card>
   );

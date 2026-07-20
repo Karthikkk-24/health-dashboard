@@ -145,7 +145,7 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold">Latest analysis</h2>
             {data.latestAnalysis ? (
               <Link
-                href="/reports"
+                href={`/reports/${data.latestAnalysis.report_id}`}
                 className="text-sm text-accent-glow hover:text-accent"
               >
                 View full report
@@ -167,7 +167,7 @@ export default function DashboardPage() {
               />
               {(data.latestAnalysis?.action_plan?.length ?? 0) > 6 ? (
                 <Link
-                  href="/reports"
+                  href={`/reports/${data.latestAnalysis?.report_id}`}
                   className="mt-3 inline-block text-sm text-accent-glow hover:text-accent"
                 >
                   See full improvement plan
