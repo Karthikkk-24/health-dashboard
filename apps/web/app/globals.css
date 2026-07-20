@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0a0f1e;
+  --color-surface: #111827;
+  --color-surface2: #1a2236;
+  --color-border: #1f2d45;
+  --color-accent: #3b82f6;
+  --color-accent-glow: #60a5fa;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-muted: #64748b;
+  --color-text: #f1f5f9;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes float-glow {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-18px) scale(1.05);
+    opacity: 0.7;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.hero-glow {
+  background: radial-gradient(
+      circle at 20% 20%,
+      rgba(59, 130, 246, 0.25),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 10%,
+      rgba(96, 165, 250, 0.18),
+      transparent 35%
+    ),
+    linear-gradient(135deg, #0a0f1e 0%, #111827 50%, #0a0f1e 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 14s ease infinite;
+}
+
+.particle {
+  animation: float-glow 8s ease-in-out infinite;
+}
+
+.card-glow {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.08);
+}
