@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useChartTheme } from '@/lib/chart-theme';
 
 export function CholesterolChart({
   data,
@@ -20,6 +21,7 @@ export function CholesterolChart({
     triglycerides: number | null;
   };
 }) {
+  const theme = useChartTheme();
   const chartData = [
     { name: 'LDL', value: data.ldl },
     { name: 'HDL', value: data.hdl },
@@ -39,17 +41,18 @@ export function CholesterolChart({
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>
-          <CartesianGrid stroke="#1f2d45" strokeDasharray="3 3" />
-          <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 12 }} />
-          <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
+          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
+          <XAxis dataKey="name" stroke={theme.muted} tick={{ fontSize: 12 }} />
+          <YAxis stroke={theme.muted} tick={{ fontSize: 12 }} />
           <Tooltip
             contentStyle={{
-              background: '#111827',
-              border: '1px solid #1f2d45',
+              background: theme.tooltipBg,
+              border: `1px solid ${theme.border}`,
               borderRadius: 12,
+              color: theme.text,
             }}
           />
-          <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+          <Bar dataKey="value" fill={theme.accent} radius={[8, 8, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

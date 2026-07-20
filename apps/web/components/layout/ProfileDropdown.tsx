@@ -37,7 +37,7 @@ export function ProfileDropdown() {
         <span className="hidden text-sm sm:inline">
           {user?.firstName ?? 'Account'}
         </span>
-        <ChevronDown className="h-4 w-4 text-muted" />
+        <ChevronDown className="h-4 w-4 text-muted" strokeWidth={1.5} />
       </button>
 
       {open ? (
@@ -47,7 +47,7 @@ export function ProfileDropdown() {
             onClick={() => setOpen(false)}
             className="flex items-center gap-2 px-4 py-3 text-sm text-text transition-colors hover:bg-surface2"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4" strokeWidth={1.5} />
             Settings
           </Link>
           <div className="border-t border-border" />
@@ -56,7 +56,7 @@ export function ProfileDropdown() {
             onClick={() => signOut({ redirectUrl: '/' })}
             className="flex w-full items-center gap-2 px-4 py-3 text-sm text-danger transition-colors hover:bg-surface2"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4" strokeWidth={1.5} />
             Sign out
           </button>
         </div>

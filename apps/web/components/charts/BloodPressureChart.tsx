@@ -10,12 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-
-const tooltipStyle = {
-  background: '#111827',
-  border: '1px solid #1f2d45',
-  borderRadius: 12,
-};
+import { useChartTheme } from '@/lib/chart-theme';
 
 export function BloodPressureChart({
   data,
@@ -26,6 +21,7 @@ export function BloodPressureChart({
     diastolic: number | null;
   }>;
 }) {
+  const theme = useChartTheme();
   const chartData = data.filter(
     (item) => item.systolic != null || item.diastolic != null,
   );
@@ -42,22 +38,29 @@ export function BloodPressureChart({
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
-          <CartesianGrid stroke="#1f2d45" strokeDasharray="3 3" />
-          <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
-          <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
-          <Tooltip contentStyle={tooltipStyle} />
+          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
+          <XAxis dataKey="date" stroke={theme.muted} tick={{ fontSize: 12 }} />
+          <YAxis stroke={theme.muted} tick={{ fontSize: 12 }} />
+          <Tooltip
+            contentStyle={{
+              background: theme.tooltipBg,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 12,
+              color: theme.text,
+            }}
+          />
           <Legend />
           <Line
             type="monotone"
             dataKey="systolic"
-            stroke="#3b82f6"
+            stroke={theme.accent}
             strokeWidth={2}
             dot={false}
           />
           <Line
             type="monotone"
             dataKey="diastolic"
-            stroke="#60a5fa"
+            stroke={theme.accentGlow}
             strokeWidth={2}
             dot={false}
           />

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -19,6 +20,22 @@ export const metadata: Metadata = {
     'Upload medical PDFs, get AI-powered health insights, and track progress over time.',
 };
 
+const themeInitScript = `
+(function(){
+  try {
+    var stored = localStorage.getItem('health-dashboard-theme');
+    var theme = stored === 'light' ? 'light' : 'dark';
+    var root = document.documentElement;
+    root.classList.remove('light','dark');
+    root.classList.add(theme);
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+  } catch (e) {
+    document.documentElement.classList.add('dark');
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,10 +46,10 @@ export default function RootLayout({
       appearance={{
         variables: {
           colorPrimary: '#3b82f6',
-          colorBackground: '#111827',
           borderRadius: '0.75rem',
         },
         elements: {
+          rootBox: 'text-text',
           card: 'bg-surface border border-border shadow-none',
           headerTitle: 'text-text',
           headerSubtitle: 'text-muted',
@@ -46,11 +63,14 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en" className="dark">
+      <html lang="en" className="dark" suppressHydrationWarning>
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        </head>
         <body
           className={`${inter.variable} ${jetbrains.variable} min-h-screen bg-background text-text antialiased`}
         >
-          {children}
+          <ThemeProvider>{children}</ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

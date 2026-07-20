@@ -33,7 +33,7 @@ export function Modal({
       <button
         type="button"
         aria-label="Close modal backdrop"
-        className="absolute inset-0 bg-background/70 backdrop-blur-sm"
+        className="absolute inset-0 overlay backdrop-blur-sm"
         onClick={onClose}
       />
       <div
@@ -53,7 +53,7 @@ export function Modal({
             className="rounded-lg p-2 text-muted transition-colors hover:bg-surface2 hover:text-text"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
         {children}

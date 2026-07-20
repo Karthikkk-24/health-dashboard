@@ -139,7 +139,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid items-start gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Latest analysis</h2>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
         </Card>
-        <Card>
+        <Card className="xl:sticky xl:top-24">
           <HealthScoreCard score={data.stats.latestHealthScore} />
         </Card>
       </div>

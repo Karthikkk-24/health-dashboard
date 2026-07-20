@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ReportCard } from '@/components/reports/ReportCard';
 import { ComparisonView } from '@/components/reports/ComparisonView';
+import { SelectField } from '@/components/ui/SelectField';
 import { formatDate } from '@/lib/utils';
 
 export default function ReportsPage() {
@@ -99,10 +100,9 @@ export default function ReportsPage() {
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-2 text-sm">
               <span className="text-muted">Earlier / Report A</span>
-              <select
+              <SelectField
                 value={reportAId}
                 onChange={(event) => setReportAId(event.target.value)}
-                className="field"
               >
                 <option value="">Select report</option>
                 {completedReports.map((report) => (
@@ -110,14 +110,13 @@ export default function ReportsPage() {
                     {formatDate(report.report_date)} · {report.file_name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
             <label className="space-y-2 text-sm">
               <span className="text-muted">Later / Report B</span>
-              <select
+              <SelectField
                 value={reportBId}
                 onChange={(event) => setReportBId(event.target.value)}
-                className="field"
               >
                 <option value="">Select report</option>
                 {completedReports.map((report) => (
@@ -125,7 +124,7 @@ export default function ReportsPage() {
                     {formatDate(report.report_date)} · {report.file_name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
           </div>
           <Button

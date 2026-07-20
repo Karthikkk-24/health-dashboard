@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { SelectField } from '@/components/ui/SelectField';
 
 function bmiPreview(heightCm: string, weightKg: string): string | null {
   const h = Number(heightCm);
@@ -169,21 +170,20 @@ export default function SettingsPage() {
           </label>
           <label className="space-y-2 text-sm">
             <span className="text-muted">Sex</span>
-            <select
+            <SelectField
               value={sex ?? ''}
               onChange={(e) =>
                 setSex(
                   (e.target.value || null) as UserProfile['sex'],
                 )
               }
-              className={inputClass}
             >
               <option value="">Select</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
               <option value="prefer_not_to_say">Prefer not to say</option>
-            </select>
+            </SelectField>
           </label>
           <label className="space-y-2 text-sm">
             <span className="text-muted">Height (cm)</span>
@@ -211,21 +211,20 @@ export default function SettingsPage() {
           </label>
           <label className="space-y-2 text-sm sm:col-span-2">
             <span className="text-muted">Activity level</span>
-            <select
+            <SelectField
               value={activity ?? ''}
               onChange={(e) =>
                 setActivity(
                   (e.target.value || null) as UserProfile['activity_level'],
                 )
               }
-              className={inputClass}
             >
               <option value="">Select</option>
               <option value="sedentary">Sedentary</option>
               <option value="light">Light</option>
               <option value="moderate">Moderate</option>
               <option value="active">Active</option>
-            </select>
+            </SelectField>
           </label>
         </div>
         {bmiLabel ? (

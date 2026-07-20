@@ -17,10 +17,13 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { SelectField } from '@/components/ui/SelectField';
+import { useChartTheme } from '@/lib/chart-theme';
 import Link from 'next/link';
 
 export default function StatsPage() {
   const { getToken } = useAuth();
+  const chartTheme = useChartTheme();
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState('');
@@ -103,10 +106,9 @@ export default function StatsPage() {
       <Card className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <label className="flex-1 space-y-2 text-sm">
           <span className="text-muted">Category</span>
-          <select
+          <SelectField
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="field"
           >
             <option value="">All categories</option>
             {categories.map((item) => (
@@ -114,7 +116,7 @@ export default function StatsPage() {
                 {item}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <label className="flex-1 space-y-2 text-sm">
           <span className="text-muted">From</span>
@@ -164,20 +166,21 @@ export default function StatsPage() {
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={points}>
-                      <CartesianGrid stroke="#1f2d45" strokeDasharray="3 3" />
-                      <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
+                      <XAxis dataKey="date" stroke={chartTheme.muted} tick={{ fontSize: 12 }} />
+                      <YAxis stroke={chartTheme.muted} tick={{ fontSize: 12 }} />
                       <Tooltip
                         contentStyle={{
-                          background: '#111827',
-                          border: '1px solid #1f2d45',
+                          background: chartTheme.tooltipBg,
+                          border: `1px solid ${chartTheme.border}`,
                           borderRadius: 12,
+                          color: chartTheme.text,
                         }}
                       />
                       <Line
                         type="monotone"
                         dataKey="value"
-                        stroke="#3b82f6"
+                        stroke={chartTheme.accent}
                         strokeWidth={2}
                         dot={false}
                       />

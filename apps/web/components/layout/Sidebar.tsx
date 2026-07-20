@@ -55,7 +55,7 @@ export function Sidebar({
             onClick={onClose}
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
-              <Activity className="h-5 w-5" />
+              <Activity className="h-5 w-5" strokeWidth={1.5} />
             </span>
             <span className="text-lg font-semibold tracking-tight text-text">
               Health Dashboard
@@ -67,7 +67,7 @@ export function Sidebar({
             onClick={onClose}
             aria-label="Close sidebar"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
@@ -88,7 +88,7 @@ export function Sidebar({
                     : 'text-muted hover:bg-surface2 hover:text-text',
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 {item.label}
               </Link>
             );

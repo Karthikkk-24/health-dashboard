@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { ProfileDropdown } from './ProfileDropdown';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -30,11 +31,14 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           className="rounded-lg p-2 text-muted transition-colors hover:bg-surface2 hover:text-text lg:hidden"
           aria-label="Open sidebar"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5" strokeWidth={1.5} />
         </button>
         <h1 className="text-lg font-semibold tracking-tight text-text">{title}</h1>
       </div>
-      <ProfileDropdown />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <ProfileDropdown />
+      </div>
     </header>
   );
 }
