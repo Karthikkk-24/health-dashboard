@@ -17,6 +17,8 @@ import {
   TrendChart,
 } from '@/components/charts/HealthScoreCard';
 import { RiskBadge } from '@/components/reports/RiskBadge';
+import { ActionPlanView } from '@/components/reports/ActionPlanView';
+import { ProfileIncompleteBanner } from '@/components/layout/ProfileIncompleteBanner';
 import { formatDate, scoreColor } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -104,6 +106,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <ProfileIncompleteBanner show={data.profileComplete === false} />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
@@ -157,6 +160,21 @@ export default function DashboardPage() {
               <RiskBadge key={risk} risk={risk} />
             ))}
           </div>
+          {(data.latestAnalysis?.action_plan?.length ?? 0) > 0 ? (
+            <div className="mt-6 border-t border-border pt-4">
+              <ActionPlanView
+                items={(data.latestAnalysis?.action_plan ?? []).slice(0, 6)}
+              />
+              {(data.latestAnalysis?.action_plan?.length ?? 0) > 6 ? (
+                <Link
+                  href="/reports"
+                  className="mt-3 inline-block text-sm text-accent-glow hover:text-accent"
+                >
+                  See full improvement plan
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </Card>
         <Card>
           <HealthScoreCard score={data.stats.latestHealthScore} />

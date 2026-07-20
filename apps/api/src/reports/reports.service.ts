@@ -184,7 +184,17 @@ export class ReportsService {
         throw new Error('Could not extract meaningful text from PDF');
       }
 
-      const analysis = await this.pdfService.analyzeWithGemini(text);
+      const { data: owner } = await this.supabase.db
+        .from('users')
+        .select('*')
+        .eq('id', report.user_id)
+        .maybeSingle();
+
+      const profile = owner
+        ? this.usersService.toHealthProfile(owner as import('../common/dto/database.types').DbUser)
+        : null;
+
+      const analysis = await this.pdfService.analyzeWithGemini(text, profile);
 
       await this.supabase.db
         .from('health_metrics')
@@ -228,6 +238,7 @@ export class ReportsService {
           potential_issues: analysis.potential_issues,
           recommendations: analysis.recommendations,
           positive_indicators: analysis.positive_indicators,
+          action_plan: analysis.action_plan,
         });
 
       if (analysisError) {

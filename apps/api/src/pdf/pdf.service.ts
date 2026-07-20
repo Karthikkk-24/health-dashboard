@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { finalizeAnalysis } from './health-insights';
 import {
   GEMINI_EXTRACTION_PROMPT,
   GeminiAnalysis,
   GeminiAnalysisSchema,
+  UserHealthProfile,
 } from './pdf.types';
 
 @Injectable()
@@ -69,7 +71,15 @@ export class PdfService {
     return trimmed;
   }
 
-  private heuristicExtraction(text: string): GeminiAnalysis {
+  private extractMetricsFromText(text: string): Array<{
+    name: string;
+    value: number;
+    unit: string | null;
+    category: string;
+    reference_min: number | null;
+    reference_max: number | null;
+    status: 'normal' | 'borderline' | 'out_of_range' | 'needs_attention';
+  }> {
     const catalog: Array<{
       name: string;
       category: string;
@@ -262,23 +272,9 @@ export class PdfService {
         category: string;
         reference_min: number | null;
         reference_max: number | null;
-        status: 'normal' | 'low' | 'high' | 'critical';
+        status: 'normal' | 'borderline' | 'out_of_range' | 'needs_attention';
       }
     >();
-
-    const classify = (
-      value: number,
-      min?: number,
-      max?: number,
-    ): 'normal' | 'low' | 'high' | 'critical' => {
-      if (min != null && value < min) {
-        return value < min * 0.8 ? 'critical' : 'low';
-      }
-      if (max != null && value > max) {
-        return value > max * 1.3 ? 'critical' : 'high';
-      }
-      return 'normal';
-    };
 
     const tryParseValueNearAlias = (
       line: string,
@@ -385,7 +381,7 @@ export class PdfService {
           category: item.category,
           reference_min: item.reference_min ?? null,
           reference_max: item.reference_max ?? null,
-          status: classify(value, item.reference_min, item.reference_max),
+          status: 'normal',
         });
       }
     }
@@ -404,7 +400,7 @@ export class PdfService {
           category: 'Metabolic',
           reference_min: 4,
           reference_max: 5.6,
-          status: classify(value, 4, 5.6),
+          status: 'normal',
         });
       }
     }
@@ -423,61 +419,30 @@ export class PdfService {
           category: 'Thyroid',
           reference_min: 0.27,
           reference_max: 4.2,
-          status: classify(value, 0.27, 4.2),
+          status: 'normal',
         });
       }
     }
 
-    const metrics = Array.from(found.values());
-    const abnormal = metrics.filter((metric) => metric.status !== 'normal');
-    const score = Math.max(
-      20,
-      100 -
-        abnormal.length * 8 -
-        metrics.filter((metric) => metric.status === 'critical').length * 8,
-    );
-
-    return GeminiAnalysisSchema.parse({
-      metrics,
-      summary:
-        metrics.length > 0
-          ? `Extracted ${metrics.length} lab metrics from the report. ${
-              abnormal.length > 0
-                ? `${abnormal.length} values are outside typical reference ranges (notably: ${abnormal
-                    .slice(0, 5)
-                    .map((metric) => metric.name)
-                    .join(', ')}).`
-                : 'Extracted values appear within typical reference ranges.'
-            } Full AI narrative was unavailable, so rule-based clinical parsing was used.`
-          : 'No structured metrics could be extracted from the PDF text.',
-      risks: abnormal.map(
-        (metric) =>
-          `${metric.name} is ${metric.status} (${metric.value} ${metric.unit ?? ''})`,
-      ),
-      current_issues: abnormal
-        .filter(
-          (metric) =>
-            metric.status === 'high' || metric.status === 'critical',
-        )
-        .map((metric) => `${metric.name} outside reference range`),
-      potential_issues: abnormal
-        .filter((metric) => metric.status === 'low')
-        .map((metric) => `${metric.name} below reference range`),
-      recommendations: [
-        'Discuss flagged metrics with a licensed clinician.',
-        'Repeat abnormal tests if clinically indicated and review trends over time.',
-      ],
-      positive_indicators: metrics
-        .filter((metric) => metric.status === 'normal')
-        .slice(0, 8)
-        .map((metric) => `${metric.name} within reference range`),
-      overall_health_score: score,
-    });
+    return Array.from(found.values());
   }
 
-  async analyzeWithGemini(text: string): Promise<GeminiAnalysis> {
+  private heuristicExtraction(
+    text: string,
+    profile?: UserHealthProfile | null,
+  ): GeminiAnalysis {
+    return finalizeAnalysis(this.extractMetricsFromText(text), profile);
+  }
+
+  async analyzeWithGemini(
+    text: string,
+    profile?: UserHealthProfile | null,
+  ): Promise<GeminiAnalysis> {
     const models = ['gemini-flash-latest', 'gemini-2.0-flash-lite'];
-    const prompt = `${GEMINI_EXTRACTION_PROMPT}\n\nMedical report text:\n${text.slice(0, 40_000)}`;
+    const profileHint = profile
+      ? `\nPatient context: age=${profile.age_years ?? 'unknown'}, sex=${profile.sex ?? 'unknown'}, BMI=${profile.bmi ?? 'unknown'} (${profile.bmi_category ?? 'n/a'}), activity=${profile.activity_level ?? 'unknown'}. Personalize the calm summary using this.`
+      : '\nPatient profile incomplete — avoid assumptions about BMI/age.';
+    const prompt = `${GEMINI_EXTRACTION_PROMPT}${profileHint}\n\nMedical report text:\n${text.slice(0, 40_000)}`;
     let lastError: Error | null = null;
 
     for (const modelName of models) {
@@ -499,8 +464,18 @@ export class PdfService {
           }),
         ]);
         const raw = result.response.text();
-        const parsed = JSON.parse(this.extractJson(raw)) as unknown;
-        return GeminiAnalysisSchema.parse(parsed);
+        const parsed = JSON.parse(this.extractJson(raw)) as {
+          metrics?: GeminiAnalysis['metrics'];
+          summary?: string;
+          risks?: string[];
+          current_issues?: string[];
+          potential_issues?: string[];
+          recommendations?: string[];
+          positive_indicators?: string[];
+          action_plan?: GeminiAnalysis['action_plan'];
+          overall_health_score?: number;
+        };
+        return finalizeAnalysis(parsed.metrics ?? [], profile, parsed);
       } catch (error) {
         lastError =
           error instanceof Error ? error : new Error('Gemini analysis failed');
@@ -511,7 +486,7 @@ export class PdfService {
     this.logger.warn(
       `All Gemini models failed${lastError ? `: ${lastError.message}` : ''}. Using heuristic extraction.`,
     );
-    return this.heuristicExtraction(text);
+    return this.heuristicExtraction(text, profile);
   }
 
   async generateComparisonNarrative(

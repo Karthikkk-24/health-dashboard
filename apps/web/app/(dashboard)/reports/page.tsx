@@ -17,6 +17,8 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { ReportCard } from '@/components/reports/ReportCard';
 import { ComparisonView } from '@/components/reports/ComparisonView';
 import { RiskBadge } from '@/components/reports/RiskBadge';
+import { StatusBadge } from '@/components/reports/StatusBadge';
+import { ActionPlanView } from '@/components/reports/ActionPlanView';
 import { formatDate, scoreColor } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -215,7 +217,7 @@ export default function ReportsPage() {
             </section>
 
             <section>
-              <h3 className="mb-2 font-semibold">Risks</h3>
+              <h3 className="mb-2 font-semibold">Things to watch</h3>
               <div className="flex flex-wrap gap-2">
                 {(detail.analysis?.risks ?? []).map((risk) => (
                   <RiskBadge key={risk} risk={risk} />
@@ -223,9 +225,11 @@ export default function ReportsPage() {
               </div>
             </section>
 
+            <ActionPlanView items={detail.analysis?.action_plan ?? []} />
+
             <section className="grid gap-4 md:grid-cols-2">
               <div>
-                <h3 className="mb-2 font-semibold">Current issues</h3>
+                <h3 className="mb-2 font-semibold">Current focus areas</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
                   {(detail.analysis?.current_issues ?? []).map((item) => (
                     <li key={item}>{item}</li>
@@ -233,23 +237,15 @@ export default function ReportsPage() {
                 </ul>
               </div>
               <div>
-                <h3 className="mb-2 font-semibold">Potential issues</h3>
+                <h3 className="mb-2 font-semibold">Keep an eye on</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
                   {(detail.analysis?.potential_issues ?? []).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
               </div>
-              <div>
-                <h3 className="mb-2 font-semibold">Recommendations</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-                  {(detail.analysis?.recommendations ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="mb-2 font-semibold">Positive indicators</h3>
+              <div className="md:col-span-2">
+                <h3 className="mb-2 font-semibold">Looking good</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
                   {(detail.analysis?.positive_indicators ?? []).map((item) => (
                     <li key={item}>{item}</li>
@@ -266,6 +262,7 @@ export default function ReportsPage() {
                     <tr>
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Value</th>
+                      <th className="px-3 py-2">Reference</th>
                       <th className="px-3 py-2">Category</th>
                       <th className="px-3 py-2">Status</th>
                     </tr>
@@ -277,8 +274,16 @@ export default function ReportsPage() {
                         <td className="px-3 py-2 font-mono">
                           {metric.metric_value ?? '—'} {metric.metric_unit}
                         </td>
+                        <td className="px-3 py-2 font-mono text-muted">
+                          {metric.reference_min != null ||
+                          metric.reference_max != null
+                            ? `${metric.reference_min ?? '—'} – ${metric.reference_max ?? '—'}`
+                            : '—'}
+                        </td>
                         <td className="px-3 py-2">{metric.metric_category}</td>
-                        <td className="px-3 py-2">{metric.status ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <StatusBadge status={metric.status} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

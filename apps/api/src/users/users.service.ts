@@ -1,6 +1,22 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DbUser } from '../common/dto/database.types';
+import { enrichProfile } from '../pdf/health-insights';
+import { UserHealthProfile } from '../pdf/pdf.types';
+
+export type HealthProfileUpdate = {
+  date_of_birth?: string | null;
+  sex?: DbUser['sex'];
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  activity_level?: DbUser['activity_level'];
+  notification_preferences?: { email?: boolean; report_ready?: boolean };
+};
 
 @Injectable()
 export class UsersService {
@@ -35,7 +51,6 @@ export class UsersService {
       return data as DbUser;
     }
 
-    // Concurrent insert race or transient upsert error — fetch existing row
     const existing = await this.findByClerkId(clerkId);
     if (existing) {
       if (fullName || avatarUrl || email) {
@@ -88,28 +103,125 @@ export class UsersService {
     return user;
   }
 
-  async updatePreferences(
+  toHealthProfile(user: DbUser): UserHealthProfile {
+    return enrichProfile({
+      date_of_birth: user.date_of_birth,
+      sex: user.sex,
+      height_cm: user.height_cm != null ? Number(user.height_cm) : null,
+      weight_kg: user.weight_kg != null ? Number(user.weight_kg) : null,
+      activity_level: user.activity_level,
+    });
+  }
+
+  isProfileComplete(user: DbUser): boolean {
+    return Boolean(
+      user.date_of_birth &&
+        user.sex &&
+        user.height_cm &&
+        user.weight_kg,
+    );
+  }
+
+  async updateProfile(
     clerkId: string,
-    preferences: { email?: boolean; report_ready?: boolean },
+    update: HealthProfileUpdate,
   ): Promise<DbUser> {
     const user = await this.getMe(clerkId);
-    const next = {
-      ...user.notification_preferences,
-      ...preferences,
-    };
+    const patch: Record<string, unknown> = {};
+
+    if (update.date_of_birth !== undefined) {
+      if (update.date_of_birth) {
+        const dob = new Date(update.date_of_birth);
+        if (Number.isNaN(dob.getTime()) || dob > new Date()) {
+          throw new BadRequestException({
+            code: 'INVALID_DOB',
+            message: 'Date of birth must be a valid past date.',
+          });
+        }
+      }
+      patch.date_of_birth = update.date_of_birth;
+    }
+
+    if (update.sex !== undefined) {
+      const allowed = ['male', 'female', 'other', 'prefer_not_to_say', null];
+      if (!allowed.includes(update.sex)) {
+        throw new BadRequestException({
+          code: 'INVALID_SEX',
+          message: 'Invalid sex value.',
+        });
+      }
+      patch.sex = update.sex;
+    }
+
+    if (update.height_cm !== undefined) {
+      if (
+        update.height_cm != null &&
+        (update.height_cm < 50 || update.height_cm > 250)
+      ) {
+        throw new BadRequestException({
+          code: 'INVALID_HEIGHT',
+          message: 'Height must be between 50 and 250 cm.',
+        });
+      }
+      patch.height_cm = update.height_cm;
+    }
+
+    if (update.weight_kg !== undefined) {
+      if (
+        update.weight_kg != null &&
+        (update.weight_kg < 20 || update.weight_kg > 400)
+      ) {
+        throw new BadRequestException({
+          code: 'INVALID_WEIGHT',
+          message: 'Weight must be between 20 and 400 kg.',
+        });
+      }
+      patch.weight_kg = update.weight_kg;
+    }
+
+    if (update.activity_level !== undefined) {
+      const allowed = ['sedentary', 'light', 'moderate', 'active', null];
+      if (!allowed.includes(update.activity_level)) {
+        throw new BadRequestException({
+          code: 'INVALID_ACTIVITY',
+          message: 'Invalid activity level.',
+        });
+      }
+      patch.activity_level = update.activity_level;
+    }
+
+    if (update.notification_preferences) {
+      patch.notification_preferences = {
+        ...user.notification_preferences,
+        ...update.notification_preferences,
+      };
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return user;
+    }
 
     const { data, error } = await this.supabase.db
       .from('users')
-      .update({ notification_preferences: next })
+      .update(patch)
       .eq('id', user.id)
       .select('*')
       .single();
 
     if (error || !data) {
-      throw new Error(`Failed to update preferences: ${error?.message}`);
+      throw new Error(`Failed to update profile: ${error?.message}`);
     }
 
     return data as DbUser;
+  }
+
+  async updatePreferences(
+    clerkId: string,
+    preferences: { email?: boolean; report_ready?: boolean },
+  ): Promise<DbUser> {
+    return this.updateProfile(clerkId, {
+      notification_preferences: preferences,
+    });
   }
 
   async deleteAllData(clerkId: string): Promise<void> {

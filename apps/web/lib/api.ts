@@ -77,7 +77,39 @@ async function request<T>(
 
 export const api = {
   getMe: (getToken: TokenProvider) =>
-    request<{ user: UserProfile }>('/users/me', getToken),
+    request<{
+      user: UserProfile;
+      health_profile?: {
+        age_years?: number | null;
+        bmi?: number | null;
+        bmi_category?: string | null;
+      };
+      profile_complete?: boolean;
+    }>('/users/me', getToken),
+
+  updateProfile: (
+    getToken: TokenProvider,
+    body: {
+      notification_preferences?: { email?: boolean; report_ready?: boolean };
+      date_of_birth?: string | null;
+      sex?: UserProfile['sex'];
+      height_cm?: number | null;
+      weight_kg?: number | null;
+      activity_level?: UserProfile['activity_level'];
+    },
+  ) =>
+    request<{
+      user: UserProfile;
+      health_profile?: {
+        age_years?: number | null;
+        bmi?: number | null;
+        bmi_category?: string | null;
+      };
+      profile_complete?: boolean;
+    }>('/users/me', getToken, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 
   updatePreferences: (
     getToken: TokenProvider,

@@ -1,3 +1,22 @@
+export type MetricStatus =
+  | 'normal'
+  | 'borderline'
+  | 'out_of_range'
+  | 'needs_attention';
+
+export type ActionPriority =
+  | 'immediate_consult'
+  | 'discuss_soon'
+  | 'self_care';
+
+export interface ActionPlanItem {
+  title: string;
+  detail: string;
+  addresses: string[];
+  timeframe: string;
+  priority: ActionPriority;
+}
+
 export interface DbUser {
   id: string;
   clerk_id: string;
@@ -8,6 +27,11 @@ export interface DbUser {
     email: boolean;
     report_ready: boolean;
   };
+  date_of_birth: string | null;
+  sex: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,7 +61,7 @@ export interface DbHealthMetric {
   metric_category: string;
   reference_min: number | null;
   reference_max: number | null;
-  status: 'normal' | 'low' | 'high' | 'critical' | null;
+  status: MetricStatus | null;
   recorded_at: string;
   created_at: string;
 }
@@ -53,6 +77,7 @@ export interface DbHealthAnalysis {
   potential_issues: string[];
   recommendations: string[];
   positive_indicators: string[];
+  action_plan: ActionPlanItem[];
   created_at: string;
 }
 

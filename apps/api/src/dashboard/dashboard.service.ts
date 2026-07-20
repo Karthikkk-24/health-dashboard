@@ -148,8 +148,10 @@ export class DashboardService {
             overall_health_score: latestAnalysis.overall_health_score,
             report_id: latestAnalysis.report_id,
             report_date: latestReport?.report_date ?? null,
+            action_plan: latestAnalysis.action_plan ?? [],
           }
         : null,
+      profileComplete: this.usersService.isProfileComplete(user),
     };
   }
 }

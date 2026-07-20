@@ -91,7 +91,11 @@ export class UsersController {
       user.fullName,
       user.avatarUrl,
     );
-    return { user: profile };
+    return {
+      user: profile,
+      health_profile: this.usersService.toHealthProfile(profile),
+      profile_complete: this.usersService.isProfileComplete(profile),
+    };
   }
 
   @Patch('me')
@@ -99,7 +103,14 @@ export class UsersController {
   async updateMe(
     @CurrentUser() user: ClerkRequestUser,
     @Body()
-    body: { notification_preferences?: { email?: boolean; report_ready?: boolean } },
+    body: {
+      notification_preferences?: { email?: boolean; report_ready?: boolean };
+      date_of_birth?: string | null;
+      sex?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
+      height_cm?: number | null;
+      weight_kg?: number | null;
+      activity_level?: 'sedentary' | 'light' | 'moderate' | 'active' | null;
+    },
   ) {
     await this.usersService.ensureUser(
       user.clerkId,
@@ -107,11 +118,12 @@ export class UsersController {
       user.fullName,
       user.avatarUrl,
     );
-    const updated = await this.usersService.updatePreferences(
-      user.clerkId,
-      body.notification_preferences ?? {},
-    );
-    return { user: updated };
+    const updated = await this.usersService.updateProfile(user.clerkId, body);
+    return {
+      user: updated,
+      health_profile: this.usersService.toHealthProfile(updated),
+      profile_complete: this.usersService.isProfileComplete(updated),
+    };
   }
 
   @Delete('me/data')

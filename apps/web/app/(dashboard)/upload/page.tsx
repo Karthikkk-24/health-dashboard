@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { UploadProgress } from '@/components/upload/UploadProgress';
 import { ReportDatePicker } from '@/components/upload/ReportDatePicker';
+import { ProfileIncompleteBanner } from '@/components/layout/ProfileIncompleteBanner';
 import { formatDate } from '@/lib/utils';
 
 function todayIso(): string {
@@ -38,6 +39,7 @@ export default function UploadPage() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [reports, setReports] = useState<HealthReport[]>([]);
+  const [profileComplete, setProfileComplete] = useState(true);
 
   const loadReports = useCallback(async () => {
     const result = await api.getReports(() => getToken());
@@ -46,7 +48,11 @@ export default function UploadPage() {
 
   useEffect(() => {
     void loadReports().catch(() => undefined);
-  }, [loadReports]);
+    void api
+      .getMe(() => getToken())
+      .then((me) => setProfileComplete(me.profile_complete !== false))
+      .catch(() => undefined);
+  }, [getToken, loadReports]);
 
   useEffect(() => {
     if (!activeId || !activeStatus) return;
@@ -127,6 +133,7 @@ export default function UploadPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <ProfileIncompleteBanner show={!profileComplete} />
       <Card className="space-y-6">
         <div>
           <h2 className="text-xl font-semibold">Upload medical report</h2>
