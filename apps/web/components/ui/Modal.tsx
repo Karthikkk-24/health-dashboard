@@ -33,7 +33,7 @@ export function Modal({
       <button
         type="button"
         aria-label="Close modal backdrop"
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0 bg-background/70 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
@@ -41,16 +41,16 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-surface p-6 card-glow',
+          'relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-surface p-6 text-text card-glow',
           className,
         )}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
+          <h2 className="text-xl font-semibold text-text">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-muted hover:bg-surface2 hover:text-text"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-surface2 hover:text-text"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

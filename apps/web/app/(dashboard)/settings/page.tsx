@@ -122,8 +122,7 @@ export default function SettingsPage() {
     return <Skeleton className="h-80" />;
   }
 
-  const inputClass =
-    'w-full rounded-xl border border-border bg-surface2 px-4 py-3 text-text outline-none focus:ring-2 focus:ring-accent';
+  const inputClass = 'field';
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -236,7 +235,7 @@ export default function SettingsPage() {
 
       <Card className="space-y-4">
         <h2 className="text-lg font-semibold">Notifications</h2>
-        <label className="flex items-center justify-between gap-4 text-sm">
+        <label className="flex cursor-pointer items-center justify-between gap-4 text-sm">
           <span>Email updates</span>
           <input
             type="checkbox"
@@ -245,7 +244,7 @@ export default function SettingsPage() {
             className="h-4 w-4 accent-accent"
           />
         </label>
-        <label className="flex items-center justify-between gap-4 text-sm">
+        <label className="flex cursor-pointer items-center justify-between gap-4 text-sm">
           <span>Notify when report analysis is ready</span>
           <input
             type="checkbox"

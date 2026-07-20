@@ -16,9 +16,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [getToken, isSignedIn]);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-text">
       <Sidebar open={open} onClose={() => setOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-col lg:pl-64">
         <Navbar onMenuClick={() => setOpen(true)} />
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>

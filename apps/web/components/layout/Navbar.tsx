@@ -15,21 +15,24 @@ const TITLES: Record<string, string> = {
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
   const title =
-    Object.entries(TITLES).find(([path]) => pathname.startsWith(path))?.[1] ??
-    'Health Dashboard';
+    pathname.startsWith('/reports/') && pathname !== '/reports'
+      ? 'Report analysis'
+      : (Object.entries(TITLES).find(([path]) =>
+          pathname.startsWith(path),
+        )?.[1] ?? 'Health Dashboard');
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:px-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-muted hover:bg-surface2 hover:text-text lg:hidden"
+          className="rounded-lg p-2 text-muted transition-colors hover:bg-surface2 hover:text-text lg:hidden"
           aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-text">{title}</h1>
       </div>
       <ProfileDropdown />
     </header>

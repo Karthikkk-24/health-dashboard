@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+html {
+  color-scheme: dark;
+}
+
 html,
 body {
   min-height: 100%;
@@ -30,6 +34,57 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Interactive cursors */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+a[href],
+summary,
+label,
+select:not(:disabled),
+input[type='checkbox']:not(:disabled),
+input[type='radio']:not(:disabled),
+input[type='file']:not(:disabled),
+input[type='date']:not(:disabled),
+input[type='datetime-local']:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'],
+select:disabled,
+input:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+/* Themed form controls (native pickers / options) */
+input,
+select,
+textarea {
+  color: var(--color-text);
+  background-color: var(--color-surface2);
+  border-color: var(--color-border);
+  color-scheme: dark;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+}
+
+select option,
+select optgroup {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+}
+
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  filter: invert(0.75);
+  cursor: pointer;
+  opacity: 0.8;
 }
 
 @keyframes float-glow {
@@ -78,4 +133,19 @@ body {
 
 .card-glow {
   box-shadow: 0 0 30px rgba(59, 130, 246, 0.08);
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface2);
+  padding: 0.75rem 1rem;
+  color: var(--color-text);
+  outline: none;
+}
+
+.field:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--color-accent);
 }

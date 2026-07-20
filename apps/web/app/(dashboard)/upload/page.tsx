@@ -172,7 +172,7 @@ export default function UploadPage() {
             {activeStatus === 'failed' && activeId ? (
               <button
                 type="button"
-                className="ml-auto text-danger"
+                className="ml-auto text-danger transition-colors hover:text-danger/80"
                 onClick={() => void onRetry(activeId)}
               >
                 Retry

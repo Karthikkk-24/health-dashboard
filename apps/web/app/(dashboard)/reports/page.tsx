@@ -102,7 +102,7 @@ export default function ReportsPage() {
               <select
                 value={reportAId}
                 onChange={(event) => setReportAId(event.target.value)}
-                className="w-full rounded-xl border border-border bg-surface2 px-4 py-3"
+                className="field"
               >
                 <option value="">Select report</option>
                 {completedReports.map((report) => (
@@ -117,7 +117,7 @@ export default function ReportsPage() {
               <select
                 value={reportBId}
                 onChange={(event) => setReportBId(event.target.value)}
-                className="w-full rounded-xl border border-border bg-surface2 px-4 py-3"
+                className="field"
               >
                 <option value="">Select report</option>
                 {completedReports.map((report) => (

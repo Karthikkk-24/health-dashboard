@@ -37,29 +37,33 @@ export function Sidebar({
     <>
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden',
+          'fixed inset-0 z-40 bg-background/70 backdrop-blur-sm transition-opacity lg:hidden',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
       />
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-surface2 transition-transform lg:static lg:translate-x-0',
-          open ? 'translate-x-0' : '-translate-x-full',
+          'fixed inset-y-0 left-0 z-50 flex h-dvh w-64 flex-col border-r border-border bg-surface transition-transform',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex items-center justify-between px-5 py-5">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2"
+            onClick={onClose}
+          >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
               <Activity className="h-5 w-5" />
             </span>
-            <span className="text-lg font-semibold tracking-tight">
+            <span className="text-lg font-semibold tracking-tight text-text">
               Health Dashboard
             </span>
           </Link>
           <button
             type="button"
-            className="rounded-lg p-2 text-muted hover:bg-surface lg:hidden"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-surface2 hover:text-text lg:hidden"
             onClick={onClose}
             aria-label="Close sidebar"
           >
@@ -67,7 +71,7 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {NAV_ITEMS.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -80,11 +84,11 @@ export function Sidebar({
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                   active
-                    ? 'border-r-2 border-accent bg-accent/10 text-accent'
-                    : 'text-muted hover:bg-surface hover:text-text',
+                    ? 'bg-accent/10 text-accent-glow'
+                    : 'text-muted hover:bg-surface2 hover:text-text',
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {item.label}
               </Link>
             );
@@ -102,10 +106,10 @@ export function Sidebar({
                 className="h-10 w-10 rounded-full border border-border"
               />
             ) : (
-              <div className="h-10 w-10 rounded-full border border-border bg-surface" />
+              <div className="h-10 w-10 rounded-full border border-border bg-surface2" />
             )}
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
+              <p className="truncate text-sm font-medium text-text">
                 {user?.fullName ?? 'User'}
               </p>
               <p className="truncate text-xs text-muted">

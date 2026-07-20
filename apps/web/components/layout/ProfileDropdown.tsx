@@ -27,12 +27,12 @@ export function ProfileDropdown() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 rounded-xl border border-border bg-surface2 px-2 py-1.5 hover:border-accent/40"
+        className="flex items-center gap-2 rounded-xl border border-border bg-surface2 px-2 py-1.5 text-text transition-colors hover:border-accent/40"
       >
         {user?.imageUrl ? (
           <Image src={user.imageUrl} alt="" width={32} height={32} className="h-8 w-8 rounded-full" />
         ) : (
-          <div className="h-8 w-8 rounded-full bg-surface2" />
+          <div className="h-8 w-8 rounded-full bg-surface" />
         )}
         <span className="hidden text-sm sm:inline">
           {user?.firstName ?? 'Account'}
@@ -45,7 +45,7 @@ export function ProfileDropdown() {
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-4 py-3 text-sm text-text hover:bg-surface2"
+            className="flex items-center gap-2 px-4 py-3 text-sm text-text transition-colors hover:bg-surface2"
           >
             <Settings className="h-4 w-4" />
             Settings
@@ -54,7 +54,7 @@ export function ProfileDropdown() {
           <button
             type="button"
             onClick={() => signOut({ redirectUrl: '/' })}
-            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-danger hover:bg-surface2"
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-danger transition-colors hover:bg-surface2"
           >
             <LogOut className="h-4 w-4" />
             Sign out

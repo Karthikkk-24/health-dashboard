@@ -37,15 +37,16 @@ export default function RootLayout({
           headerTitle: 'text-text',
           headerSubtitle: 'text-muted',
           socialButtonsBlockButton:
-            'bg-surface2 border border-border text-text hover:bg-surface',
+            'bg-surface2 border border-border text-text hover:bg-surface cursor-pointer',
           formButtonPrimary:
-            'bg-accent hover:bg-accent-glow text-white shadow-none',
-          footerActionLink: 'text-accent-glow hover:text-accent',
+            'bg-accent hover:bg-accent-glow text-white shadow-none cursor-pointer',
+          footerActionLink: 'text-accent-glow hover:text-accent cursor-pointer',
           formFieldInput: 'bg-surface2 text-text border-border',
+          identityPreviewEditButton: 'cursor-pointer',
         },
       }}
     >
-      <html lang="en">
+      <html lang="en" className="dark">
         <body
           className={`${inter.variable} ${jetbrains.variable} min-h-screen bg-background text-text antialiased`}
         >

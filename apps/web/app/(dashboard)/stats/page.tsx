@@ -106,7 +106,7 @@ export default function StatsPage() {
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="w-full rounded-xl border border-border bg-surface2 px-4 py-3"
+            className="field"
           >
             <option value="">All categories</option>
             {categories.map((item) => (
@@ -122,7 +122,7 @@ export default function StatsPage() {
             type="date"
             value={from}
             onChange={(event) => setFrom(event.target.value)}
-            className="w-full rounded-xl border border-border bg-surface2 px-4 py-3"
+            className="field"
           />
         </label>
         <label className="flex-1 space-y-2 text-sm">
@@ -131,7 +131,7 @@ export default function StatsPage() {
             type="date"
             value={to}
             onChange={(event) => setTo(event.target.value)}
-            className="w-full rounded-xl border border-border bg-surface2 px-4 py-3"
+            className="field"
           />
         </label>
         <div className="flex gap-2">
