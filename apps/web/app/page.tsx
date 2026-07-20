@@ -1,24 +1,12 @@
 import Link from 'next/link';
-import { Activity, FileUp, LineChart, Sparkles } from 'lucide-react';
+import { FileUp, LineChart, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { LandingHeader } from '@/components/layout/LandingHeader';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-text">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2 font-semibold">
-          <Activity className="h-5 w-5 text-accent" />
-          Health Dashboard
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/sign-in" className="text-sm text-muted hover:text-text">
-            Sign in
-          </Link>
-          <Link href="/sign-up">
-            <Button className="px-4 py-2 text-sm">Get started</Button>
-          </Link>
-        </div>
-      </header>
+      <LandingHeader />
 
       <section className="hero-glow relative overflow-hidden px-6 pb-24 pt-16">
         <div className="particle pointer-events-none absolute left-[12%] top-24 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
@@ -67,7 +55,10 @@ export default function LandingPage() {
             key={feature.title}
             className="rounded-2xl border border-border bg-surface p-6 card-glow"
           >
-            <feature.icon className="mb-4 h-6 w-6 text-accent" />
+            <feature.icon
+              className="mb-4 h-6 w-6 text-accent"
+              strokeWidth={1.5}
+            />
             <h2 className="text-lg font-semibold">{feature.title}</h2>
             <p className="mt-2 text-sm text-muted">{feature.body}</p>
           </div>

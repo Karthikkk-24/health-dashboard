@@ -118,6 +118,11 @@ select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  background-image: none;
+}
+
+select::-ms-expand {
+  display: none;
 }
 
 html.dark input[type='date']::-webkit-calendar-picker-indicator,
