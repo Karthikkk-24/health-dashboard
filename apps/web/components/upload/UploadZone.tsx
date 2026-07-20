@@ -62,7 +62,7 @@ export function UploadZone({
           if (next) validate(next);
         }}
       />
-      <FileUp className="mx-auto h-10 w-10 text-accent" />
+      <FileUp className="mx-auto h-10 w-10 text-accent" strokeWidth={1.5} />
       <p className="mt-4 text-base font-medium">
         Drag and drop a PDF report here
       </p>
