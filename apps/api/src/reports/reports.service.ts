@@ -13,11 +13,17 @@ import {
   DbHealthAnalysis,
   DbHealthMetric,
   DbHealthReport,
+  DbReportChatMessage,
+  DbUser,
 } from '../common/dto/database.types';
 import { ClerkRequestUser } from '../auth/clerk.guard';
 import { AppCacheService } from '../common/cache/app-cache.service';
+import { RiskService } from '../risk/risk.service';
+import { ClinicianPdfService } from './clinician-pdf.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 const MAX_UPLOADS_PER_HOUR = 10;
+const MAX_CHAT_PER_HOUR = 20;
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
 const REPORTS_TTL_MS = 5 * 60_000;
 
@@ -29,6 +35,9 @@ export class ReportsService {
     private readonly supabase: SupabaseService,
     private readonly usersService: UsersService,
     private readonly pdfService: PdfService,
+    private readonly riskService: RiskService,
+    private readonly clinicianPdf: ClinicianPdfService,
+    private readonly alertsService: AlertsService,
     private readonly cache: AppCacheService,
   ) {}
 
@@ -198,8 +207,9 @@ export class ReportsService {
         .eq('id', report.user_id)
         .maybeSingle();
 
-      const profile = owner
-        ? this.usersService.toHealthProfile(owner as import('../common/dto/database.types').DbUser)
+      const ownerUser = (owner as DbUser | null) ?? null;
+      const profile = ownerUser
+        ? this.usersService.toHealthProfile(ownerUser)
         : null;
 
       const analysis = await this.pdfService.analyzeWithGemini(text, profile);
@@ -213,26 +223,41 @@ export class ReportsService {
         .delete()
         .eq('report_id', reportId);
 
-      if (analysis.metrics.length > 0) {
-        const rows = analysis.metrics.map((metric) => ({
-          report_id: reportId,
-          user_id: report.user_id,
-          metric_name: metric.name,
-          metric_value: metric.value ?? null,
-          metric_unit: metric.unit ?? null,
-          metric_category: metric.category,
-          reference_min: metric.reference_min ?? null,
-          reference_max: metric.reference_max ?? null,
-          status: metric.status ?? null,
-          recorded_at: report.report_date,
-        }));
+      const metricRows =
+        analysis.metrics.length > 0
+          ? analysis.metrics.map((metric) => ({
+              report_id: reportId,
+              user_id: report.user_id,
+              metric_name: metric.name,
+              metric_value: metric.value ?? null,
+              metric_unit: metric.unit ?? null,
+              metric_category: metric.category,
+              reference_min: metric.reference_min ?? null,
+              reference_max: metric.reference_max ?? null,
+              status: metric.status ?? null,
+              recorded_at: report.report_date,
+            }))
+          : [];
+
+      if (metricRows.length > 0) {
         const { error: metricsError } = await this.supabase.db
           .from('health_metrics')
-          .insert(rows);
+          .insert(metricRows);
         if (metricsError) {
           throw new Error(metricsError.message);
         }
       }
+
+      const riskScores = ownerUser
+        ? this.riskService.compute(
+            metricRows.map((m) => ({
+              metric_name: m.metric_name,
+              metric_value: m.metric_value,
+              status: m.status,
+            })),
+            ownerUser,
+          )
+        : { computed_at: new Date().toISOString() };
 
       const { error: analysisError } = await this.supabase.db
         .from('health_analyses')
@@ -247,6 +272,7 @@ export class ReportsService {
           recommendations: analysis.recommendations,
           positive_indicators: analysis.positive_indicators,
           action_plan: analysis.action_plan,
+          risk_scores: riskScores,
         });
 
       if (analysisError) {
@@ -261,6 +287,28 @@ export class ReportsService {
           error_message: null,
         })
         .eq('id', reportId);
+
+      const insertedMetrics = metricRows.map((m, index) => ({
+        id: `temp-${index}`,
+        report_id: reportId,
+        user_id: report.user_id,
+        metric_name: m.metric_name,
+        metric_value: m.metric_value,
+        metric_unit: m.metric_unit,
+        metric_category: m.metric_category,
+        reference_min: m.reference_min,
+        reference_max: m.reference_max,
+        status: m.status,
+        recorded_at: m.recorded_at,
+        created_at: new Date().toISOString(),
+      })) as DbHealthMetric[];
+
+      await this.alertsService.evaluateAfterProcess(
+        report.user_id,
+        reportId,
+        insertedMetrics,
+      );
+
       this.invalidateUserCaches(report.user_id);
     } catch (error) {
       const message =
@@ -472,5 +520,134 @@ export class ReportsService {
     void this.processReport(reportId);
     this.invalidateUserCaches(detail.report.user_id);
     return detail.report;
+  }
+
+  async exportClinicianPdf(
+    clerkUser: ClerkRequestUser,
+    reportId: string,
+  ): Promise<{ buffer: Buffer; fileName: string }> {
+    const detail = await this.getReport(clerkUser, reportId);
+    const user = await this.usersService.getMe(clerkUser.clerkId);
+
+    const buffer = await this.clinicianPdf.build({
+      user,
+      report: {
+        file_name: detail.report.file_name,
+        report_date: detail.report.report_date,
+      },
+      metrics: detail.metrics,
+      analysis: detail.analysis
+        ? {
+            overall_health_score: detail.analysis.overall_health_score,
+            summary: detail.analysis.summary,
+            action_plan: detail.analysis.action_plan ?? [],
+            risk_scores: detail.analysis.risk_scores ?? {},
+          }
+        : null,
+    });
+
+    const safeDate = detail.report.report_date.replace(/[^\d-]/g, '');
+    return {
+      buffer,
+      fileName: `clinician-summary-${safeDate}.pdf`,
+    };
+  }
+
+  async getChat(
+    clerkUser: ClerkRequestUser,
+    reportId: string,
+  ): Promise<{ messages: DbReportChatMessage[] }> {
+    const detail = await this.getReport(clerkUser, reportId);
+    const { data, error } = await this.supabase.db
+      .from('report_chat_messages')
+      .select('*')
+      .eq('report_id', detail.report.id)
+      .eq('user_id', detail.report.user_id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    if (error) {
+      throw new BadRequestException({
+        code: 'CHAT_LOAD_FAILED',
+        message: error.message,
+      });
+    }
+
+    return { messages: (data ?? []) as DbReportChatMessage[] };
+  }
+
+  async postChat(
+    clerkUser: ClerkRequestUser,
+    reportId: string,
+    message: string,
+  ): Promise<{ messages: DbReportChatMessage[] }> {
+    const trimmed = (message ?? '').trim();
+    if (!trimmed || trimmed.length > 2000) {
+      throw new BadRequestException({
+        code: 'INVALID_MESSAGE',
+        message: 'Message must be 1–2000 characters.',
+      });
+    }
+
+    const detail = await this.getReport(clerkUser, reportId);
+    const userId = detail.report.user_id;
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count } = await this.supabase.db
+      .from('report_chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .gte('created_at', oneHourAgo);
+
+    if ((count ?? 0) >= MAX_CHAT_PER_HOUR) {
+      throw new BadRequestException({
+        code: 'CHAT_RATE_LIMITED',
+        message: 'Chat limit of 20 messages per hour exceeded.',
+      });
+    }
+
+    const { error: userMsgError } = await this.supabase.db
+      .from('report_chat_messages')
+      .insert({
+        report_id: reportId,
+        user_id: userId,
+        role: 'user',
+        content: trimmed,
+      });
+
+    if (userMsgError) {
+      throw new BadRequestException({
+        code: 'CHAT_SAVE_FAILED',
+        message: userMsgError.message,
+      });
+    }
+
+    const { data: history } = await this.supabase.db
+      .from('report_chat_messages')
+      .select('role, content')
+      .eq('report_id', reportId)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    const reply = await this.pdfService.chatAboutReport({
+      message: trimmed,
+      history: (history ?? []) as Array<{
+        role: 'user' | 'assistant';
+        content: string;
+      }>,
+      metrics: detail.metrics,
+      analysis: detail.analysis,
+      rawTextSlice: detail.report.raw_text?.slice(0, 4000) ?? null,
+    });
+
+    await this.supabase.db.from('report_chat_messages').insert({
+      report_id: reportId,
+      user_id: userId,
+      role: 'assistant',
+      content: this.pdfService.sanitizeText(reply),
+    });
+
+    return this.getChat(clerkUser, reportId);
   }
 }

@@ -4,6 +4,8 @@ import type {
   DashboardData,
   HealthMetric,
   HealthReport,
+  MetricAlert,
+  ReportChatMessage,
   UserProfile,
 } from '@/types/health';
 
@@ -96,6 +98,9 @@ export const api = {
       height_cm?: number | null;
       weight_kg?: number | null;
       activity_level?: UserProfile['activity_level'];
+      smoker?: boolean | null;
+      has_diabetes?: boolean | null;
+      on_bp_medication?: boolean | null;
     },
   ) =>
     request<{
@@ -148,6 +153,67 @@ export const api = {
       processing_status: string;
       error_message: string | null;
     }>(`/reports/${id}/status`, getToken),
+
+  downloadClinicianPdf: async (
+    getToken: TokenProvider,
+    id: string,
+  ): Promise<Blob> => {
+    const token = await getToken();
+    if (!token) {
+      throw new ApiError(401, {
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'You must be signed in.',
+          requestId: 'local',
+        },
+      });
+    }
+    const response = await fetch(`${API_URL}/api/v1/reports/${id}/export.pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      let body: ApiErrorBody;
+      try {
+        body = (await response.json()) as ApiErrorBody;
+      } catch {
+        body = {
+          error: {
+            code: 'EXPORT_FAILED',
+            message: 'Could not download clinician PDF.',
+            requestId: 'unknown',
+          },
+        };
+      }
+      throw new ApiError(response.status, body);
+    }
+    return response.blob();
+  },
+
+  getReportChat: (getToken: TokenProvider, id: string) =>
+    request<{ messages: ReportChatMessage[] }>(
+      `/reports/${id}/chat`,
+      getToken,
+    ),
+
+  postReportChat: (getToken: TokenProvider, id: string, message: string) =>
+    request<{ messages: ReportChatMessage[] }>(`/reports/${id}/chat`, getToken, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+
+  getAlerts: (getToken: TokenProvider, unreadOnly = false) =>
+    request<{ alerts: MetricAlert[]; unread_count: number }>(
+      `/alerts${unreadOnly ? '?unread=1' : ''}`,
+      getToken,
+    ),
+
+  markAlertRead: (getToken: TokenProvider, id: string) =>
+    request<{ alert: MetricAlert }>(`/alerts/${id}/read`, getToken, {
+      method: 'PATCH',
+    }),
+
+  markAllAlertsRead: (getToken: TokenProvider) =>
+    request<{ ok: boolean }>('/alerts/read-all', getToken, { method: 'POST' }),
 
   uploadReport: async (
     getToken: TokenProvider,

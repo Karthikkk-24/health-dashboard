@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { ProfileDropdown } from './ProfileDropdown';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { AlertsBell } from '@/components/layout/AlertsBell';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -11,6 +12,7 @@ const TITLES: Record<string, string> = {
   '/reports': 'Reports',
   '/stats': 'Health Stats',
   '/settings': 'Settings',
+  '/alerts': 'Lab alerts',
 };
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
@@ -36,6 +38,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         <h1 className="text-lg font-semibold tracking-tight text-text">{title}</h1>
       </div>
       <div className="flex items-center gap-2">
+        <AlertsBell />
         <ThemeToggle />
         <ProfileDropdown />
       </div>

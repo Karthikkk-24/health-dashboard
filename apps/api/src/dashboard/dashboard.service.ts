@@ -165,6 +165,7 @@ export class DashboardService {
             report_id: latestAnalysis.report_id,
             report_date: latestReport?.report_date ?? null,
             action_plan: latestAnalysis.action_plan ?? [],
+            risk_scores: latestAnalysis.risk_scores ?? {},
           }
         : null,
       profileComplete: this.usersService.isProfileComplete(user),

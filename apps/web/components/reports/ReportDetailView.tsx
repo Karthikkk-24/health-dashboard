@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/Card';
 import { RiskBadge } from '@/components/reports/RiskBadge';
 import { StatusBadge } from '@/components/reports/StatusBadge';
 import { ActionPlanView } from '@/components/reports/ActionPlanView';
+import { RiskScoresCard } from '@/components/reports/RiskScoresCard';
+import { ReportChatPanel } from '@/components/reports/ReportChatPanel';
 import { formatDate, scoreColor } from '@/lib/utils';
 
 export function ReportDetailView({
@@ -10,11 +12,15 @@ export function ReportDetailView({
   metrics,
   analysis,
   downloadUrl,
+  onDownloadClinicianPdf,
+  clinicianPdfLoading = false,
 }: {
   report: HealthReport;
   metrics: HealthMetric[];
   analysis: HealthAnalysis | null;
   downloadUrl: string | null;
+  onDownloadClinicianPdf?: () => void;
+  clinicianPdfLoading?: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -36,18 +42,34 @@ export function ReportDetailView({
             </p>
             <p className="mt-1 text-xs text-muted">Health score</p>
           </div>
-          {downloadUrl ? (
-            <a
-              href={downloadUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-accent-glow hover:text-accent"
-            >
-              Download original PDF
-            </a>
-          ) : null}
+          <div className="flex flex-col items-end gap-2">
+            {downloadUrl ? (
+              <a
+                href={downloadUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-accent-glow hover:text-accent"
+              >
+                Download original PDF
+              </a>
+            ) : null}
+            {onDownloadClinicianPdf ? (
+              <button
+                type="button"
+                onClick={onDownloadClinicianPdf}
+                disabled={clinicianPdfLoading}
+                className="text-sm font-medium text-accent-glow hover:text-accent disabled:opacity-50"
+              >
+                {clinicianPdfLoading
+                  ? 'Preparing summary…'
+                  : 'Download clinician summary'}
+              </button>
+            ) : null}
+          </div>
         </div>
       </Card>
+
+      <RiskScoresCard riskScores={analysis?.risk_scores} />
 
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Summary</h2>
@@ -68,6 +90,8 @@ export function ReportDetailView({
       ) : null}
 
       <ActionPlanView items={analysis?.action_plan ?? []} />
+
+      <ReportChatPanel reportId={report.id} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

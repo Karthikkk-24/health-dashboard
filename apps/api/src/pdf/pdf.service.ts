@@ -518,4 +518,76 @@ export class PdfService {
 
     return 'Comparison completed. Review the metric changes above for improvements and declines between the two reports.';
   }
+
+  async chatAboutReport(input: {
+    message: string;
+    history: Array<{ role: 'user' | 'assistant'; content: string }>;
+    metrics: Array<{
+      metric_name: string;
+      metric_value: number | null;
+      metric_unit: string | null;
+      status: string | null;
+    }>;
+    analysis: {
+      summary: string | null;
+      overall_health_score: number | null;
+      risks: string[];
+      action_plan?: Array<{ title: string; detail: string }>;
+      risk_scores?: unknown;
+    } | null;
+    rawTextSlice: string | null;
+  }): Promise<string> {
+    const metricsBlock = input.metrics
+      .map(
+        (m) =>
+          `- ${m.metric_name}: ${m.metric_value ?? '—'} ${m.metric_unit ?? ''} (${m.status ?? 'n/a'})`,
+      )
+      .join('\n');
+
+    const context = [
+      `Overall score: ${input.analysis?.overall_health_score ?? '—'}`,
+      `Summary: ${input.analysis?.summary ?? '—'}`,
+      `Risks: ${(input.analysis?.risks ?? []).join('; ') || 'none'}`,
+      `Risk scores JSON: ${JSON.stringify(input.analysis?.risk_scores ?? {})}`,
+      `Metrics:\n${metricsBlock || 'none'}`,
+      `Report text excerpt:\n${(input.rawTextSlice ?? '').slice(0, 3000)}`,
+    ].join('\n\n');
+
+    const historyText = input.history
+      .slice(-12)
+      .map((m) => `${m.role}: ${m.content}`)
+      .join('\n');
+
+    const system = `You are a calm health report assistant. Answer ONLY using the provided report context (metrics, analysis, risk scores, excerpt). Cite metric names when relevant. Do not diagnose, prescribe, or invent values. If the answer is not in the context, say you can only discuss what is in this report. Keep tone calm and clinical. Plain text, short paragraphs.`;
+
+    const prompt = `${system}\n\nCONTEXT:\n${context}\n\nRECENT CHAT:\n${historyText}\n\nuser: ${input.message}\nassistant:`;
+
+    const models = ['gemini-flash-latest', 'gemini-2.0-flash-lite'];
+    for (const modelName of models) {
+      try {
+        const model = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: { temperature: 0.3 },
+        });
+        const result = await Promise.race([
+          model.generateContent(prompt),
+          new Promise<never>((_, reject) => {
+            setTimeout(
+              () => reject(new Error(`Gemini chat timeout for ${modelName}`)),
+              12_000,
+            );
+          }),
+        ]);
+        return this.sanitizeText(result.response.text()).slice(0, 4000);
+      } catch (error) {
+        this.logger.warn(
+          `Gemini chat model ${modelName} failed: ${
+            error instanceof Error ? error.message : 'unknown'
+          }`,
+        );
+      }
+    }
+
+    return 'I can only discuss what is in this report’s stored metrics and analysis. Try asking about a specific lab name from the metrics table, or open Settings if risk scores need more profile details.';
+  }
 }

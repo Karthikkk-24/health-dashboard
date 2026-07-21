@@ -43,6 +43,9 @@ export default function SettingsPage() {
   const [weightKg, setWeightKg] = useState('');
   const [activity, setActivity] =
     useState<UserProfile['activity_level']>(null);
+  const [smoker, setSmoker] = useState<boolean | null>(null);
+  const [hasDiabetes, setHasDiabetes] = useState<boolean | null>(null);
+  const [onBpMeds, setOnBpMeds] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -61,6 +64,9 @@ export default function SettingsPage() {
     setHeightCm(profile.height_cm != null ? String(profile.height_cm) : '');
     setWeightKg(profile.weight_kg != null ? String(profile.weight_kg) : '');
     setActivity(profile.activity_level ?? null);
+    setSmoker(profile.smoker ?? null);
+    setHasDiabetes(profile.has_diabetes ?? null);
+    setOnBpMeds(profile.on_bp_medication ?? null);
     setHydrated(true);
   }, [profile, hydrated]);
 
@@ -73,6 +79,9 @@ export default function SettingsPage() {
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
         activity_level: activity,
+        smoker,
+        has_diabetes: hasDiabetes,
+        on_bp_medication: onBpMeds,
         notification_preferences: {
           email: emailPref,
           report_ready: reportReadyPref,
@@ -205,6 +214,48 @@ export default function SettingsPage() {
               <option value="light">Light</option>
               <option value="moderate">Moderate</option>
               <option value="active">Active</option>
+            </SelectField>
+          </label>
+          <label className="space-y-2 text-sm">
+            <span className="text-muted">Current smoker</span>
+            <SelectField
+              value={smoker === null ? '' : smoker ? 'yes' : 'no'}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSmoker(v === '' ? null : v === 'yes');
+              }}
+            >
+              <option value="">Not set</option>
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </SelectField>
+          </label>
+          <label className="space-y-2 text-sm">
+            <span className="text-muted">Diabetes</span>
+            <SelectField
+              value={hasDiabetes === null ? '' : hasDiabetes ? 'yes' : 'no'}
+              onChange={(e) => {
+                const v = e.target.value;
+                setHasDiabetes(v === '' ? null : v === 'yes');
+              }}
+            >
+              <option value="">Not set</option>
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </SelectField>
+          </label>
+          <label className="space-y-2 text-sm sm:col-span-2">
+            <span className="text-muted">On blood pressure medication</span>
+            <SelectField
+              value={onBpMeds === null ? '' : onBpMeds ? 'yes' : 'no'}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOnBpMeds(v === '' ? null : v === 'yes');
+              }}
+            >
+              <option value="">Not set</option>
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
             </SelectField>
           </label>
         </div>

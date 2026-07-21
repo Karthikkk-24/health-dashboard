@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/upload', label: 'Upload', icon: Upload },
   { href: '/reports', label: 'Reports', icon: FileText },
   { href: '/stats', label: 'Stats', icon: BarChart3 },
+  { href: '/alerts', label: 'Alerts', icon: Activity },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 

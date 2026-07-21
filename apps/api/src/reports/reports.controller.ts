@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -6,14 +7,15 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
-  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { ClerkAuthGuard, ClerkRequestUser } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ReportsService } from './reports.service';
@@ -63,6 +65,42 @@ export class ReportsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.reportsService.getStatus(user, id);
+  }
+
+  @Get(':id/export.pdf')
+  async exportPdf(
+    @CurrentUser() user: ClerkRequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, fileName } = await this.reportsService.exportClinicianPdf(
+      user,
+      id,
+    );
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
+  }
+
+  @Get(':id/chat')
+  async getChat(
+    @CurrentUser() user: ClerkRequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.reportsService.getChat(user, id);
+  }
+
+  @Post(':id/chat')
+  @Throttle({ default: { limit: 30, ttl: 3600_000 } })
+  async postChat(
+    @CurrentUser() user: ClerkRequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { message?: string },
+  ) {
+    return this.reportsService.postChat(user, id, body?.message ?? '');
   }
 
   @Get(':id')

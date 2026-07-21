@@ -15,12 +15,15 @@ import {
 } from '@/components/charts/HealthScoreCard';
 import { RiskBadge } from '@/components/reports/RiskBadge';
 import { ActionPlanView } from '@/components/reports/ActionPlanView';
+import { RiskScoresCard } from '@/components/reports/RiskScoresCard';
 import { ProfileIncompleteBanner } from '@/components/layout/ProfileIncompleteBanner';
 import { formatDate, scoreColor } from '@/lib/utils';
-import { useDashboard } from '@/lib/queries';
+import { useAlerts, useDashboard } from '@/lib/queries';
 
 export default function DashboardPage() {
   const { data, isPending, isError, error, refetch } = useDashboard();
+  const alertsQuery = useAlerts();
+  const unreadAlerts = alertsQuery.data?.unread_count ?? 0;
 
   if (isPending && !data) {
     return (
@@ -60,10 +63,16 @@ export default function DashboardPage() {
     );
   }
 
-  return <DashboardContent data={data} />;
+  return <DashboardContent data={data} unreadAlerts={unreadAlerts} />;
 }
 
-function DashboardContent({ data }: { data: DashboardData }) {
+function DashboardContent({
+  data,
+  unreadAlerts,
+}: {
+  data: DashboardData;
+  unreadAlerts: number;
+}) {
   const stats = [
     {
       label: 'Total reports',
@@ -87,6 +96,20 @@ function DashboardContent({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6">
       <ProfileIncompleteBanner show={data.profileComplete === false} />
+      {unreadAlerts > 0 ? (
+        <Link
+          href="/alerts"
+          className="block rounded-xl border border-border bg-surface2/50 px-4 py-3 text-sm transition-colors hover:bg-surface2"
+        >
+          <span className="font-medium text-text">
+            {unreadAlerts} new lab change{unreadAlerts === 1 ? '' : 's'}
+          </span>
+          <span className="text-muted">
+            {' '}
+            — review what shifted since your previous report
+          </span>
+        </Link>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
@@ -156,9 +179,15 @@ function DashboardContent({ data }: { data: DashboardData }) {
             </div>
           ) : null}
         </Card>
-        <Card className="xl:sticky xl:top-24">
-          <HealthScoreCard score={data.stats.latestHealthScore} />
-        </Card>
+        <div className="space-y-4 xl:sticky xl:top-24">
+          <Card>
+            <HealthScoreCard score={data.stats.latestHealthScore} />
+          </Card>
+          <RiskScoresCard
+            riskScores={data.latestAnalysis?.risk_scores}
+            compact
+          />
+        </div>
       </div>
     </div>
   );

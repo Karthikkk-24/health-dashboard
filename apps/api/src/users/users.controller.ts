@@ -110,6 +110,9 @@ export class UsersController {
       height_cm?: number | null;
       weight_kg?: number | null;
       activity_level?: 'sedentary' | 'light' | 'moderate' | 'active' | null;
+      smoker?: boolean | null;
+      has_diabetes?: boolean | null;
+      on_bp_medication?: boolean | null;
     },
   ) {
     await this.usersService.ensureUser(

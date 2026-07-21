@@ -14,6 +14,8 @@ export const queryKeys = {
   dashboard: ['dashboard'] as const,
   reports: ['reports'] as const,
   report: (id: string) => ['report', id] as const,
+  reportChat: (id: string) => ['report-chat', id] as const,
+  alerts: ['alerts'] as const,
   metrics: (filters: {
     category?: string;
     from?: string;
@@ -164,5 +166,60 @@ export function useRetryReport() {
   return useMutation({
     mutationFn: (id: string) => api.retryReport(getToken, id),
     onSuccess: () => invalidate(),
+  });
+}
+
+export function useReportChat(id: string | undefined) {
+  const { enabled, getToken } = useToken();
+  return useQuery({
+    queryKey: queryKeys.reportChat(id ?? ''),
+    enabled: enabled && Boolean(id),
+    queryFn: () => api.getReportChat(getToken, id as string),
+    retry: shouldRetry,
+  });
+}
+
+export function useSendReportChat(id: string) {
+  const { getToken } = useToken();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (message: string) => api.postReportChat(getToken, id, message),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.reportChat(id), data);
+    },
+  });
+}
+
+export function useAlerts(unreadOnly = false) {
+  const { enabled, getToken } = useToken();
+  return useQuery({
+    queryKey: [...queryKeys.alerts, unreadOnly],
+    enabled,
+    queryFn: () => api.getAlerts(getToken, unreadOnly),
+    retry: shouldRetry,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkAlertRead() {
+  const { getToken } = useToken();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.markAlertRead(getToken, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts }),
+  });
+}
+
+export function useMarkAllAlertsRead() {
+  const { getToken } = useToken();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.markAllAlertsRead(getToken),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts }),
   });
 }

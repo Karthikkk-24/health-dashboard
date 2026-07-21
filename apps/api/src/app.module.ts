@@ -10,6 +10,8 @@ import { ComparisonsModule } from './comparisons/comparisons.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PdfModule } from './pdf/pdf.module';
 import { AppCacheModule } from './common/cache/app-cache.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { RiskModule } from './risk/risk.module';
 
 @Module({
   imports: [
@@ -23,7 +25,9 @@ import { AppCacheModule } from './common/cache/app-cache.module';
     AppCacheModule,
     SupabaseModule,
     PdfModule,
+    RiskModule,
     UsersModule,
+    AlertsModule,
     ReportsModule,
     MetricsModule,
     ComparisonsModule,

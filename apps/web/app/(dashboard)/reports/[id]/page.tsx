@@ -1,19 +1,45 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ReportDetailView } from '@/components/reports/ReportDetailView';
 import { useReport, useRetryReport } from '@/lib/queries';
+import { api, ApiError } from '@/lib/api';
 
 export default function ReportDetailPage() {
   const params = useParams<{ id: string }>();
   const reportId = params.id;
+  const { getToken } = useAuth();
   const { data: detail, isPending, isError, error, refetch } =
     useReport(reportId);
   const retry = useRetryReport();
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const downloadClinicianPdf = async () => {
+    if (!reportId) return;
+    setPdfLoading(true);
+    try {
+      const blob = await api.downloadClinicianPdf(
+        async () => getToken({ skipCache: true }),
+        reportId,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clinician-summary-${detail?.report.report_date ?? reportId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err instanceof ApiError ? err.message : err);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   if (isPending && !detail) {
     return (
@@ -70,6 +96,8 @@ export default function ReportDetailPage() {
         metrics={detail.metrics}
         analysis={detail.analysis}
         downloadUrl={detail.downloadUrl}
+        onDownloadClinicianPdf={() => void downloadClinicianPdf()}
+        clinicianPdfLoading={pdfLoading}
       />
     </div>
   );

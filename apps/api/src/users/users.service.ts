@@ -16,6 +16,9 @@ export type HealthProfileUpdate = {
   height_cm?: number | null;
   weight_kg?: number | null;
   activity_level?: DbUser['activity_level'];
+  smoker?: boolean | null;
+  has_diabetes?: boolean | null;
+  on_bp_medication?: boolean | null;
   notification_preferences?: { email?: boolean; report_ready?: boolean };
 };
 
@@ -192,6 +195,42 @@ export class UsersService {
         });
       }
       patch.activity_level = update.activity_level;
+    }
+
+    if (update.smoker !== undefined) {
+      if (update.smoker !== null && typeof update.smoker !== 'boolean') {
+        throw new BadRequestException({
+          code: 'INVALID_SMOKER',
+          message: 'Smoker must be true, false, or null.',
+        });
+      }
+      patch.smoker = update.smoker;
+    }
+
+    if (update.has_diabetes !== undefined) {
+      if (
+        update.has_diabetes !== null &&
+        typeof update.has_diabetes !== 'boolean'
+      ) {
+        throw new BadRequestException({
+          code: 'INVALID_DIABETES',
+          message: 'Diabetes status must be true, false, or null.',
+        });
+      }
+      patch.has_diabetes = update.has_diabetes;
+    }
+
+    if (update.on_bp_medication !== undefined) {
+      if (
+        update.on_bp_medication !== null &&
+        typeof update.on_bp_medication !== 'boolean'
+      ) {
+        throw new BadRequestException({
+          code: 'INVALID_BP_MEDS',
+          message: 'BP medication status must be true, false, or null.',
+        });
+      }
+      patch.on_bp_medication = update.on_bp_medication;
     }
 
     if (update.notification_preferences) {

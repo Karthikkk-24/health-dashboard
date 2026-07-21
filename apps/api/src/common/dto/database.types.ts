@@ -17,6 +17,36 @@ export interface ActionPlanItem {
   priority: ActionPriority;
 }
 
+export type AscvdRiskResult =
+  | { status: 'incomplete'; missing: string[] }
+  | {
+      status: 'ok';
+      ten_year_pct: number;
+      risk_band: 'low' | 'borderline' | 'intermediate' | 'high';
+      note: string;
+    };
+
+export type MetabolicRiskResult = {
+  status: 'ok' | 'incomplete';
+  present: boolean | null;
+  criteria_met: number;
+  criteria_needed: number;
+  flags: Array<{
+    key: string;
+    label: string;
+    present: boolean;
+    detail: string;
+  }>;
+  missing: string[];
+  note: string;
+};
+
+export type RiskScores = {
+  ascvd?: AscvdRiskResult;
+  metabolic?: MetabolicRiskResult;
+  computed_at?: string;
+};
+
 export interface DbUser {
   id: string;
   clerk_id: string;
@@ -32,6 +62,9 @@ export interface DbUser {
   height_cm: number | null;
   weight_kg: number | null;
   activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | null;
+  smoker: boolean | null;
+  has_diabetes: boolean | null;
+  on_bp_medication: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +111,30 @@ export interface DbHealthAnalysis {
   recommendations: string[];
   positive_indicators: string[];
   action_plan: ActionPlanItem[];
+  risk_scores: RiskScores;
+  created_at: string;
+}
+
+export interface DbMetricAlert {
+  id: string;
+  user_id: string;
+  report_id: string;
+  metric_name: string;
+  severity: 'info' | 'warning' | 'high';
+  old_value: number | null;
+  new_value: number | null;
+  delta_pct: number | null;
+  message: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface DbReportChatMessage {
+  id: string;
+  report_id: string;
+  user_id: string;
+  role: 'user' | 'assistant';
+  content: string;
   created_at: string;
 }
 
