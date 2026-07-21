@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { SelectField } from '@/components/ui/SelectField';
 import { useChartTheme } from '@/lib/chart-theme';
 import { useCategories, useMetrics } from '@/lib/queries';
+import { ChartTooltip } from '@/components/charts/ChartTooltip';
 import Link from 'next/link';
 
 export default function StatsPage() {
@@ -178,12 +179,8 @@ export default function StatsPage() {
                         tick={{ fontSize: 12 }}
                       />
                       <Tooltip
-                        contentStyle={{
-                          background: chartTheme.tooltipBg,
-                          border: `1px solid ${chartTheme.border}`,
-                          borderRadius: 12,
-                          color: chartTheme.text,
-                        }}
+                        cursor={{ stroke: chartTheme.border, strokeWidth: 1 }}
+                        content={<ChartTooltip />}
                       />
                       <Line
                         type="monotone"

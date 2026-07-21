@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useChartTheme } from '@/lib/chart-theme';
+import { ChartTooltip } from './ChartTooltip';
 
 export function GlucoseChart({
   data,
@@ -38,20 +39,31 @@ export function GlucoseChart({
         <AreaChart data={chartData}>
           <defs>
             <linearGradient id="glucoseFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={theme.success} stopOpacity={0.35} />
+              <stop offset="5%" stopColor={theme.success} stopOpacity={0.3} />
               <stop offset="95%" stopColor={theme.success} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="date" stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <YAxis stroke={theme.muted} tick={{ fontSize: 12 }} />
+          <CartesianGrid
+            stroke={theme.grid}
+            strokeDasharray="3 3"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="date"
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={{ stroke: theme.border }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
-            contentStyle={{
-              background: theme.tooltipBg,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 12,
-              color: theme.text,
-            }}
+            cursor={{ stroke: theme.border, strokeWidth: 1 }}
+            content={<ChartTooltip />}
           />
           <Area
             type="monotone"
@@ -59,6 +71,7 @@ export function GlucoseChart({
             stroke={theme.success}
             fill="url(#glucoseFill)"
             strokeWidth={2}
+            activeDot={{ r: 4, fill: theme.success }}
           />
         </AreaChart>
       </ResponsiveContainer>

@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { useChartTheme } from '@/lib/chart-theme';
 import { scoreColor } from '@/lib/utils';
+import { ChartTooltip } from './ChartTooltip';
 
 export function TrendChart({
   data,
@@ -32,23 +33,36 @@ export function TrendChart({
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
-          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="date" stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <YAxis domain={[0, 100]} stroke={theme.muted} tick={{ fontSize: 12 }} />
+          <CartesianGrid
+            stroke={theme.grid}
+            strokeDasharray="3 3"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="date"
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={{ stroke: theme.border }}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[0, 100]}
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
-            contentStyle={{
-              background: theme.tooltipBg,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 12,
-              color: theme.text,
-            }}
+            cursor={{ stroke: theme.border, strokeWidth: 1 }}
+            content={<ChartTooltip />}
           />
           <Line
             type="monotone"
             dataKey="score"
             stroke={theme.accentGlow}
             strokeWidth={2}
-            dot={{ r: 3 }}
+            dot={{ r: 3, fill: theme.accentGlow, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: theme.accent }}
           />
         </LineChart>
       </ResponsiveContainer>

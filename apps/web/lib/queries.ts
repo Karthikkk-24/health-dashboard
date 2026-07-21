@@ -7,7 +7,7 @@ import {
   useQueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 
 export const queryKeys = {
   me: ['me'] as const,
@@ -23,11 +23,22 @@ export const queryKeys = {
 };
 
 function useToken() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
   return {
-    enabled: Boolean(isSignedIn),
-    getToken: () => getToken(),
+    // Wait until Clerk has finished loading — otherwise getToken() can race.
+    enabled: isLoaded && Boolean(isSignedIn),
+    getToken: async () => {
+      const token = await getToken({ skipCache: true });
+      return token;
+    },
   };
+}
+
+function shouldRetry(failureCount: number, error: Error): boolean {
+  if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+    return false;
+  }
+  return failureCount < 1;
 }
 
 export function useInvalidateHealthData() {
@@ -53,6 +64,7 @@ export function useMe() {
     queryKey: queryKeys.me,
     enabled,
     queryFn: () => api.getMe(getToken),
+    retry: shouldRetry,
   });
 }
 
@@ -62,6 +74,7 @@ export function useDashboard() {
     queryKey: queryKeys.dashboard,
     enabled,
     queryFn: () => api.getDashboard(getToken),
+    retry: shouldRetry,
   });
 }
 
@@ -71,6 +84,7 @@ export function useReports(page = 1, limit = 50) {
     queryKey: [...queryKeys.reports, page, limit],
     enabled,
     queryFn: () => api.getReports(getToken, page, limit),
+    retry: shouldRetry,
   });
 }
 
@@ -80,6 +94,7 @@ export function useReport(id: string | undefined) {
     queryKey: queryKeys.report(id ?? ''),
     enabled: enabled && Boolean(id),
     queryFn: () => api.getReport(getToken, id as string),
+    retry: shouldRetry,
   });
 }
 
@@ -93,6 +108,7 @@ export function useMetrics(filters: {
     queryKey: queryKeys.metrics(filters),
     enabled,
     queryFn: () => api.getMetrics(getToken, filters),
+    retry: shouldRetry,
   });
 }
 
@@ -102,6 +118,7 @@ export function useCategories() {
     queryKey: queryKeys.categories,
     enabled,
     queryFn: () => api.getCategories(getToken),
+    retry: shouldRetry,
   });
 }
 
@@ -111,9 +128,8 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (
-      body: Parameters<typeof api.updateProfile>[1],
-    ) => api.updateProfile(getToken, body),
+    mutationFn: (body: Parameters<typeof api.updateProfile>[1]) =>
+      api.updateProfile(getToken, body),
     onSuccess: async (result) => {
       queryClient.setQueryData(queryKeys.me, result);
       await invalidate();

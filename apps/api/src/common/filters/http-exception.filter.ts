@@ -31,10 +31,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
         code = exception.name;
       } else if (typeof body === 'object' && body !== null) {
         const record = body as Record<string, unknown>;
-        message = Array.isArray(record.message)
-          ? record.message.join(', ')
-          : String(record.message ?? exception.message);
-        code = String(record.error ?? record.code ?? exception.name);
+        const nested =
+          typeof record.message === 'object' && record.message !== null
+            ? (record.message as Record<string, unknown>)
+            : null;
+
+        if (nested) {
+          message = String(nested.message ?? exception.message);
+          code = String(nested.code ?? record.error ?? exception.name);
+        } else {
+          message = Array.isArray(record.message)
+            ? record.message.join(', ')
+            : String(record.message ?? exception.message);
+          code = String(record.code ?? record.error ?? exception.name);
+        }
       }
     } else if (exception instanceof Error) {
       message = exception.message;

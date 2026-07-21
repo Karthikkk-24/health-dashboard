@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useChartTheme } from '@/lib/chart-theme';
+import { ChartTooltip } from './ChartTooltip';
 
 export function BloodPressureChart({
   data,
@@ -38,24 +39,38 @@ export function BloodPressureChart({
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
-          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="date" stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <YAxis stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{
-              background: theme.tooltipBg,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 12,
-              color: theme.text,
-            }}
+          <CartesianGrid
+            stroke={theme.grid}
+            strokeDasharray="3 3"
+            vertical={false}
           />
-          <Legend />
+          <XAxis
+            dataKey="date"
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={{ stroke: theme.border }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            cursor={{ stroke: theme.border, strokeWidth: 1 }}
+            content={<ChartTooltip />}
+          />
+          <Legend
+            wrapperStyle={{ color: theme.muted, fontSize: 12 }}
+          />
           <Line
             type="monotone"
             dataKey="systolic"
             stroke={theme.accent}
             strokeWidth={2}
             dot={false}
+            activeDot={{ r: 4, fill: theme.accent }}
           />
           <Line
             type="monotone"
@@ -63,6 +78,7 @@ export function BloodPressureChart({
             stroke={theme.accentGlow}
             strokeWidth={2}
             dot={false}
+            activeDot={{ r: 4, fill: theme.accentGlow }}
           />
         </LineChart>
       </ResponsiveContainer>

@@ -4,12 +4,14 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import { useChartTheme } from '@/lib/chart-theme';
+import { ChartTooltip, barHoverCursor } from './ChartTooltip';
 
 export function CholesterolChart({
   data,
@@ -37,22 +39,47 @@ export function CholesterolChart({
     );
   }
 
+  const barColors = [
+    theme.accent,
+    theme.accentGlow,
+    theme.accent,
+    theme.success,
+  ];
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData}>
-          <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="name" stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <YAxis stroke={theme.muted} tick={{ fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{
-              background: theme.tooltipBg,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 12,
-              color: theme.text,
-            }}
+        <BarChart data={chartData} barCategoryGap="28%">
+          <CartesianGrid
+            stroke={theme.grid}
+            strokeDasharray="3 3"
+            vertical={false}
           />
-          <Bar dataKey="value" fill={theme.accent} radius={[8, 8, 0, 0]} />
+          <XAxis
+            dataKey="name"
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={{ stroke: theme.border }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke={theme.muted}
+            tick={{ fill: theme.muted, fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            cursor={barHoverCursor(theme.accent)}
+            content={<ChartTooltip />}
+          />
+          <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={48}>
+            {chartData.map((entry, index) => (
+              <Cell
+                key={entry.name}
+                fill={barColors[index % barColors.length]}
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
