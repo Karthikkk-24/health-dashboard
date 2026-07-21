@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { api, ApiError } from '@/lib/api';
-import type { HealthReport, ProcessingStatus } from '@/types/health';
+import type { ProcessingStatus } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -14,6 +14,13 @@ import { UploadProgress } from '@/components/upload/UploadProgress';
 import { ReportDatePicker } from '@/components/upload/ReportDatePicker';
 import { ProfileIncompleteBanner } from '@/components/layout/ProfileIncompleteBanner';
 import { formatDate } from '@/lib/utils';
+import {
+  useDeleteReport,
+  useInvalidateHealthData,
+  useMe,
+  useReports,
+  useRetryReport,
+} from '@/lib/queries';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -28,6 +35,12 @@ const STATUS_COPY: Record<ProcessingStatus, string> = {
 
 export default function UploadPage() {
   const { getToken } = useAuth();
+  const reportsQuery = useReports();
+  const meQuery = useMe();
+  const invalidate = useInvalidateHealthData();
+  const deleteReport = useDeleteReport();
+  const retryReport = useRetryReport();
+
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [reportDate, setReportDate] = useState(todayIso());
@@ -38,21 +51,9 @@ export default function UploadPage() {
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [reports, setReports] = useState<HealthReport[]>([]);
-  const [profileComplete, setProfileComplete] = useState(true);
 
-  const loadReports = useCallback(async () => {
-    const result = await api.getReports(() => getToken());
-    setReports(result.items);
-  }, [getToken]);
-
-  useEffect(() => {
-    void loadReports().catch(() => undefined);
-    void api
-      .getMe(() => getToken())
-      .then((me) => setProfileComplete(me.profile_complete !== false))
-      .catch(() => undefined);
-  }, [getToken, loadReports]);
+  const reports = reportsQuery.data?.items ?? [];
+  const profileComplete = meQuery.data?.profile_complete !== false;
 
   useEffect(() => {
     if (!activeId || !activeStatus) return;
@@ -61,25 +62,27 @@ export default function UploadPage() {
     const timer = window.setInterval(() => {
       void api
         .getReportStatus(() => getToken(), activeId)
-        .then((status) => {
+        .then(async (status) => {
           setActiveStatus(status.processing_status as ProcessingStatus);
-          if (status.processing_status === 'completed') {
-            setMessage('Analysis ready. Open Reports to view details.');
-            void loadReports();
-          } else if (status.processing_status === 'failed') {
+          if (
+            status.processing_status === 'completed' ||
+            status.processing_status === 'failed'
+          ) {
+            await invalidate();
             setMessage(
-              status.error_message
-                ? `Processing failed: ${status.error_message}`
-                : 'Processing failed. Use Retry.',
+              status.processing_status === 'completed'
+                ? 'Analysis ready. Open Reports to view details.'
+                : status.error_message
+                  ? `Processing failed: ${status.error_message}`
+                  : 'Processing failed. Use Retry.',
             );
-            void loadReports();
           }
         })
         .catch(() => undefined);
     }, 3000);
 
     return () => window.clearInterval(timer);
-  }, [activeId, activeStatus, getToken, loadReports]);
+  }, [activeId, activeStatus, getToken, invalidate]);
 
   const onUpload = async () => {
     if (!file) {
@@ -105,7 +108,7 @@ export default function UploadPage() {
       setActiveId(result.report.id);
       setActiveStatus(result.report.processing_status);
       setFile(null);
-      await loadReports();
+      await invalidate();
       setMessage(
         result.report.processing_status === 'failed'
           ? 'Upload saved, but analysis failed. Use Retry.'
@@ -120,15 +123,13 @@ export default function UploadPage() {
 
   const onDelete = async (id: string) => {
     if (!window.confirm('Delete this report and its analysis?')) return;
-    await api.deleteReport(() => getToken(), id);
-    await loadReports();
+    await deleteReport.mutateAsync(id);
   };
 
   const onRetry = async (id: string) => {
-    await api.retryReport(() => getToken(), id);
+    await retryReport.mutateAsync(id);
     setActiveId(id);
     setActiveStatus('processing');
-    await loadReports();
   };
 
   return (

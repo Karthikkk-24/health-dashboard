@@ -1,9 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@clerk/nextjs';
-import { api, ApiError } from '@/lib/api';
 import type { DashboardData } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -20,33 +17,12 @@ import { RiskBadge } from '@/components/reports/RiskBadge';
 import { ActionPlanView } from '@/components/reports/ActionPlanView';
 import { ProfileIncompleteBanner } from '@/components/layout/ProfileIncompleteBanner';
 import { formatDate, scoreColor } from '@/lib/utils';
+import { useDashboard } from '@/lib/queries';
 
 export default function DashboardPage() {
-  const { getToken } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isPending, isError, error, refetch } = useDashboard();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const dashboard = await api.getDashboard(() => getToken());
-      setData(dashboard);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Failed to load dashboard.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (loading) {
+  if (isPending && !data) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, index) => (
@@ -56,13 +32,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
+  if (isError && !data) {
     return (
       <EmptyState
         title="Could not load dashboard"
-        description={error}
+        description={error instanceof Error ? error.message : 'Unknown error'}
         action={
-          <Button onClick={() => void load()} variant="secondary">
+          <Button onClick={() => void refetch()} variant="secondary">
             Retry
           </Button>
         }
@@ -84,6 +60,10 @@ export default function DashboardPage() {
     );
   }
 
+  return <DashboardContent data={data} />;
+}
+
+function DashboardContent({ data }: { data: DashboardData }) {
   const stats = [
     {
       label: 'Total reports',

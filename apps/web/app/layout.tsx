@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -71,7 +72,9 @@ export default function RootLayout({
           className={`${inter.variable} ${jetbrains.variable} min-h-screen bg-background text-text antialiased`}
           suppressHydrationWarning
         >
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <QueryProvider>{children}</QueryProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

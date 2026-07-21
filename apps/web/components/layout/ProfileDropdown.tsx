@@ -27,7 +27,7 @@ export function ProfileDropdown() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 rounded-xl border border-border bg-surface2 px-2 py-1.5 text-text transition-colors hover:border-accent/40"
+        className="flex h-10 items-center gap-2 rounded-xl border border-border bg-surface2 px-2.5 text-text transition-colors hover:border-accent/40"
       >
         {user?.imageUrl ? (
           <Image src={user.imageUrl} alt="" width={32} height={32} className="h-8 w-8 rounded-full" />

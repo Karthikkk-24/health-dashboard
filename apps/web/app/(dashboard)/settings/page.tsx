@@ -1,15 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { useAuth, useUser } from '@clerk/nextjs';
-import { api, ApiError } from '@/lib/api';
+import { useUser } from '@clerk/nextjs';
+import { ApiError } from '@/lib/api';
 import type { UserProfile } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SelectField } from '@/components/ui/SelectField';
+import {
+  useDeleteAllData,
+  useMe,
+  useUpdateProfile,
+} from '@/lib/queries';
 
 function bmiPreview(heightCm: string, weightKg: string): string | null {
   const h = Number(heightCm);
@@ -26,8 +31,10 @@ function bmiPreview(heightCm: string, weightKg: string): string | null {
 
 export default function SettingsPage() {
   const { user } = useUser();
-  const { getToken } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const meQuery = useMe();
+  const updateProfile = useUpdateProfile();
+  const deleteAllData = useDeleteAllData();
+  const profile = meQuery.data?.user ?? null;
   const [emailPref, setEmailPref] = useState(true);
   const [reportReadyPref, setReportReadyPref] = useState(true);
   const [dob, setDob] = useState('');
@@ -36,50 +43,31 @@ export default function SettingsPage() {
   const [weightKg, setWeightKg] = useState('');
   const [activity, setActivity] =
     useState<UserProfile['activity_level']>(null);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
 
   const bmiLabel = useMemo(
     () => bmiPreview(heightCm, weightKg),
     [heightCm, weightKg],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await api.getMe(() => getToken());
-      setProfile(result.user);
-      setEmailPref(result.user.notification_preferences?.email ?? true);
-      setReportReadyPref(
-        result.user.notification_preferences?.report_ready ?? true,
-      );
-      setDob(result.user.date_of_birth ?? '');
-      setSex(result.user.sex ?? null);
-      setHeightCm(
-        result.user.height_cm != null ? String(result.user.height_cm) : '',
-      );
-      setWeightKg(
-        result.user.weight_kg != null ? String(result.user.weight_kg) : '',
-      );
-      setActivity(result.user.activity_level ?? null);
-    } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Failed to load profile.');
-    } finally {
-      setLoading(false);
-    }
-  }, [getToken]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!profile || hydrated) return;
+    setEmailPref(profile.notification_preferences?.email ?? true);
+    setReportReadyPref(profile.notification_preferences?.report_ready ?? true);
+    setDob(profile.date_of_birth ?? '');
+    setSex(profile.sex ?? null);
+    setHeightCm(profile.height_cm != null ? String(profile.height_cm) : '');
+    setWeightKg(profile.weight_kg != null ? String(profile.weight_kg) : '');
+    setActivity(profile.activity_level ?? null);
+    setHydrated(true);
+  }, [profile, hydrated]);
 
   const saveHealthProfile = async () => {
-    setSaving(true);
     setMessage(null);
     try {
-      const result = await api.updateProfile(() => getToken(), {
+      const result = await updateProfile.mutateAsync({
         date_of_birth: dob || null,
         sex,
         height_cm: heightCm ? Number(heightCm) : null,
@@ -90,7 +78,6 @@ export default function SettingsPage() {
           report_ready: reportReadyPref,
         },
       });
-      setProfile(result.user);
       setMessage(
         result.profile_complete
           ? 'Health profile saved. Future reports will use this context.'
@@ -98,32 +85,28 @@ export default function SettingsPage() {
       );
     } catch (err) {
       setMessage(err instanceof ApiError ? err.message : 'Failed to save.');
-    } finally {
-      setSaving(false);
     }
   };
 
   const deleteAll = async () => {
-    setSaving(true);
     try {
-      await api.deleteAllData(() => getToken());
+      await deleteAllData.mutateAsync();
       setConfirmOpen(false);
+      setHydrated(false);
       setMessage('All health data deleted.');
-      await load();
     } catch (err) {
       setMessage(
         err instanceof ApiError ? err.message : 'Failed to delete data.',
       );
-    } finally {
-      setSaving(false);
     }
   };
 
-  if (loading) {
+  if (meQuery.isPending && !profile) {
     return <Skeleton className="h-80" />;
   }
 
   const inputClass = 'field';
+  const saving = updateProfile.isPending || deleteAllData.isPending;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -173,9 +156,7 @@ export default function SettingsPage() {
             <SelectField
               value={sex ?? ''}
               onChange={(e) =>
-                setSex(
-                  (e.target.value || null) as UserProfile['sex'],
-                )
+                setSex((e.target.value || null) as UserProfile['sex'])
               }
             >
               <option value="">Select</option>

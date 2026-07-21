@@ -1,19 +1,11 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
-import { api } from '@/lib/api';
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { getToken, isSignedIn } = useAuth();
-
-  useEffect(() => {
-    if (!isSignedIn) return;
-    void api.getMe(() => getToken()).catch(() => undefined);
-  }, [getToken, isSignedIn]);
 
   return (
     <div className="min-h-screen bg-background text-text">

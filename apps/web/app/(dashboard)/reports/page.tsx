@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { api, ApiError } from '@/lib/api';
-import type { ComparisonResult, HealthReport } from '@/types/health';
+import type { ComparisonResult } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -13,43 +13,27 @@ import { ReportCard } from '@/components/reports/ReportCard';
 import { ComparisonView } from '@/components/reports/ComparisonView';
 import { SelectField } from '@/components/ui/SelectField';
 import { formatDate } from '@/lib/utils';
+import { useReports } from '@/lib/queries';
 
 export default function ReportsPage() {
   const { getToken } = useAuth();
-  const [reports, setReports] = useState<HealthReport[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isPending, isError, error, refetch } = useReports();
+  const reports = data?.items ?? [];
   const [reportAId, setReportAId] = useState('');
   const [reportBId, setReportBId] = useState('');
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [comparing, setComparing] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const completedReports = useMemo(
     () => reports.filter((report) => report.processing_status === 'completed'),
     [reports],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.getReports(() => getToken());
-      setReports(result.items);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load reports.');
-    } finally {
-      setLoading(false);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
   const runComparison = async () => {
     if (!reportAId || !reportBId) return;
     setComparing(true);
-    setError(null);
+    setLocalError(null);
     try {
       const result = await api.createComparison(
         () => getToken(),
@@ -58,7 +42,7 @@ export default function ReportsPage() {
       );
       setComparison(result.comparison);
     } catch (err) {
-      setError(
+      setLocalError(
         err instanceof ApiError ? err.message : 'Comparison failed.',
       );
     } finally {
@@ -66,13 +50,27 @@ export default function ReportsPage() {
     }
   };
 
-  if (loading) {
+  if (isPending && !data) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton key={index} className="h-40" />
         ))}
       </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <EmptyState
+        title="Could not load reports"
+        description={error instanceof Error ? error.message : 'Unknown error'}
+        action={
+          <Button variant="secondary" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        }
+      />
     );
   }
 
@@ -92,7 +90,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {localError ? <p className="text-sm text-danger">{localError}</p> : null}
 
       {completedReports.length >= 2 ? (
         <Card className="space-y-4">

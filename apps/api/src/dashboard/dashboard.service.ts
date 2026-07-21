@@ -6,17 +6,22 @@ import {
   DbHealthAnalysis,
   DbHealthMetric,
   DbHealthReport,
+  DbUser,
 } from '../common/dto/database.types';
+import { AppCacheService } from '../common/cache/app-cache.service';
 
 function metricMatches(name: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(name));
 }
+
+const DASHBOARD_TTL_MS = 5 * 60_000;
 
 @Injectable()
 export class DashboardService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly usersService: UsersService,
+    private readonly cache: AppCacheService,
   ) {}
 
   async getDashboard(clerkUser: ClerkRequestUser) {
@@ -27,6 +32,14 @@ export class DashboardService {
       clerkUser.avatarUrl,
     );
 
+    return this.cache.getOrSet(
+      `user:${user.id}:dashboard`,
+      DASHBOARD_TTL_MS,
+      () => this.buildDashboard(user),
+    );
+  }
+
+  private async buildDashboard(user: DbUser) {
     const { data: reports } = await this.supabase.db
       .from('health_reports')
       .select('*')
@@ -66,9 +79,7 @@ export class DashboardService {
       analyses = (analysesRes.data ?? []) as DbHealthAnalysis[];
     }
 
-    const analysisByReport = new Map(
-      analyses.map((a) => [a.report_id, a]),
-    );
+    const analysisByReport = new Map(analyses.map((a) => [a.report_id, a]));
 
     const latestReport = [...completed].sort(
       (a, b) =>
@@ -76,7 +87,7 @@ export class DashboardService {
     )[0];
 
     const latestAnalysis = latestReport
-      ? analysisByReport.get(latestReport.id) ?? null
+      ? (analysisByReport.get(latestReport.id) ?? null)
       : null;
 
     const healthScoreTrend = completed
@@ -105,7 +116,12 @@ export class DashboardService {
       const glucose = metrics.find(
         (m) =>
           m.report_id === report.id &&
-          metricMatches(m.metric_name, [/glucose/i, /fasting.?blood.?sugar/i, /fbs/i, /hba1c/i]),
+          metricMatches(m.metric_name, [
+            /glucose/i,
+            /fasting.?blood.?sugar/i,
+            /fbs/i,
+            /hba1c/i,
+          ]),
       );
       return {
         date: report.report_date,

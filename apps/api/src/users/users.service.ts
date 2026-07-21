@@ -8,6 +8,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { DbUser } from '../common/dto/database.types';
 import { enrichProfile } from '../pdf/health-insights';
 import { UserHealthProfile } from '../pdf/pdf.types';
+import { AppCacheService } from '../common/cache/app-cache.service';
 
 export type HealthProfileUpdate = {
   date_of_birth?: string | null;
@@ -22,7 +23,10 @@ export type HealthProfileUpdate = {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly cache: AppCacheService,
+  ) {}
 
   async ensureUser(
     clerkId: string,
@@ -212,6 +216,7 @@ export class UsersService {
       throw new Error(`Failed to update profile: ${error?.message}`);
     }
 
+    this.cache.invalidateUser(user.id);
     return data as DbUser;
   }
 
@@ -251,6 +256,7 @@ export class UsersService {
 
     await this.supabase.db.from('report_comparisons').delete().eq('user_id', user.id);
     await this.supabase.db.from('health_reports').delete().eq('user_id', user.id);
+    this.cache.invalidateUser(user.id);
   }
 
   async upsertFromClerkWebhook(payload: {

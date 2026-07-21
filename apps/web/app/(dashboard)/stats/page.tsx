@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -11,75 +10,74 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { api, ApiError } from '@/lib/api';
-import type { HealthMetric } from '@/types/health';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SelectField } from '@/components/ui/SelectField';
 import { useChartTheme } from '@/lib/chart-theme';
+import { useCategories, useMetrics } from '@/lib/queries';
 import Link from 'next/link';
 
 export default function StatsPage() {
-  const { getToken } = useAuth();
   const chartTheme = useChartTheme();
-  const [metrics, setMetrics] = useState<HealthMetric[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [view, setView] = useState<'chart' | 'table'>('chart');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [metricsResult, categoriesResult] = await Promise.all([
-        api.getMetrics(() => getToken(), {
-          category: category || undefined,
-          from: from || undefined,
-          to: to || undefined,
-        }),
-        api.getCategories(() => getToken()),
-      ]);
-      setMetrics(metricsResult.metrics);
-      setCategories(categoriesResult.categories);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load stats.');
-    } finally {
-      setLoading(false);
-    }
-  }, [category, from, getToken, to]);
+  const filters = {
+    category: category || undefined,
+    from: from || undefined,
+    to: to || undefined,
+  };
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const metricsQuery = useMetrics(filters);
+  const categoriesQuery = useCategories();
+
+  const metrics = metricsQuery.data?.metrics ?? [];
+  const categories = categoriesQuery.data?.categories ?? [];
+  const isPending =
+    (metricsQuery.isPending && !metricsQuery.data) ||
+    (categoriesQuery.isPending && !categoriesQuery.data);
+  const error =
+    metricsQuery.error instanceof Error
+      ? metricsQuery.error.message
+      : categoriesQuery.error instanceof Error
+        ? categoriesQuery.error.message
+        : null;
 
   const chartSeries = useMemo(() => {
     const byName = new Map<string, Array<{ date: string; value: number }>>();
     for (const metric of metrics) {
       if (metric.metric_value == null) continue;
       const list = byName.get(metric.metric_name) ?? [];
-      list.push({ date: metric.recorded_at, value: Number(metric.metric_value) });
+      list.push({
+        date: metric.recorded_at,
+        value: Number(metric.metric_value),
+      });
       byName.set(metric.metric_name, list);
     }
     return Array.from(byName.entries()).slice(0, 6);
   }, [metrics]);
 
-  if (loading) {
+  if (isPending) {
     return <Skeleton className="h-96" />;
   }
 
-  if (error) {
+  if (error && !metricsQuery.data) {
     return (
       <EmptyState
         title="Could not load stats"
         description={error}
         action={
-          <Button variant="secondary" onClick={() => void load()}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void metricsQuery.refetch();
+              void categoriesQuery.refetch();
+            }}
+          >
             Retry
           </Button>
         }
@@ -166,9 +164,19 @@ export default function StatsPage() {
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={points}>
-                      <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-                      <XAxis dataKey="date" stroke={chartTheme.muted} tick={{ fontSize: 12 }} />
-                      <YAxis stroke={chartTheme.muted} tick={{ fontSize: 12 }} />
+                      <CartesianGrid
+                        stroke={chartTheme.grid}
+                        strokeDasharray="3 3"
+                      />
+                      <XAxis
+                        dataKey="date"
+                        stroke={chartTheme.muted}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={chartTheme.muted}
+                        tick={{ fontSize: 12 }}
+                      />
                       <Tooltip
                         contentStyle={{
                           background: chartTheme.tooltipBg,

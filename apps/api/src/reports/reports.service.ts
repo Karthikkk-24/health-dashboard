@@ -15,9 +15,11 @@ import {
   DbHealthReport,
 } from '../common/dto/database.types';
 import { ClerkRequestUser } from '../auth/clerk.guard';
+import { AppCacheService } from '../common/cache/app-cache.service';
 
 const MAX_UPLOADS_PER_HOUR = 10;
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
+const REPORTS_TTL_MS = 5 * 60_000;
 
 @Injectable()
 export class ReportsService {
@@ -27,7 +29,12 @@ export class ReportsService {
     private readonly supabase: SupabaseService,
     private readonly usersService: UsersService,
     private readonly pdfService: PdfService,
+    private readonly cache: AppCacheService,
   ) {}
+
+  private invalidateUserCaches(userId: string): void {
+    this.cache.invalidateUser(userId);
+  }
 
   private assertPdf(buffer: Buffer, mimeType: string): void {
     const looksPdf =
@@ -147,6 +154,7 @@ export class ReportsService {
     }
 
     void this.processReport(reportId, file.buffer);
+    this.invalidateUserCaches(user.id);
 
     return report as DbHealthReport;
   }
@@ -253,6 +261,7 @@ export class ReportsService {
           error_message: null,
         })
         .eq('id', reportId);
+      this.invalidateUserCaches(report.user_id);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'PDF processing failed';
@@ -264,6 +273,9 @@ export class ReportsService {
           error_message: message,
         })
         .eq('id', reportId);
+      if (report?.user_id) {
+        this.invalidateUserCaches(report.user_id);
+      }
     }
   }
 
@@ -284,51 +296,57 @@ export class ReportsService {
       clerkUser.avatarUrl,
     );
 
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    return this.cache.getOrSet(
+      `user:${user.id}:reports:${page}:${limit}`,
+      REPORTS_TTL_MS,
+      async () => {
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
 
-    const { data, error, count } = await this.supabase.db
-      .from('health_reports')
-      .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
-      .order('report_date', { ascending: false })
-      .range(from, to);
+        const { data, error, count } = await this.supabase.db
+          .from('health_reports')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('report_date', { ascending: false })
+          .range(from, to);
 
-    if (error) {
-      throw new BadRequestException({
-        code: 'LIST_FAILED',
-        message: error.message,
-      });
-    }
+        if (error) {
+          throw new BadRequestException({
+            code: 'LIST_FAILED',
+            message: error.message,
+          });
+        }
 
-    const reports = (data ?? []) as DbHealthReport[];
-    const ids = reports.map((r) => r.id);
-    let scoreMap = new Map<string, number | null>();
+        const reports = (data ?? []) as DbHealthReport[];
+        const ids = reports.map((r) => r.id);
+        let scoreMap = new Map<string, number | null>();
 
-    if (ids.length > 0) {
-      const { data: analyses } = await this.supabase.db
-        .from('health_analyses')
-        .select('report_id, overall_health_score')
-        .in('report_id', ids);
-      scoreMap = new Map(
-        (analyses ?? []).map(
-          (a: { report_id: string; overall_health_score: number | null }) => [
-            a.report_id,
-            a.overall_health_score,
-          ],
-        ),
-      );
-    }
+        if (ids.length > 0) {
+          const { data: analyses } = await this.supabase.db
+            .from('health_analyses')
+            .select('report_id, overall_health_score')
+            .in('report_id', ids);
+          scoreMap = new Map(
+            (analyses ?? []).map(
+              (a: {
+                report_id: string;
+                overall_health_score: number | null;
+              }) => [a.report_id, a.overall_health_score],
+            ),
+          );
+        }
 
-    return {
-      items: reports.map((report) => ({
-        ...report,
-        health_score: scoreMap.get(report.id) ?? null,
-      })),
-      total: count ?? 0,
-      page,
-      limit,
-    };
+        return {
+          items: reports.map((report) => ({
+            ...report,
+            health_score: scoreMap.get(report.id) ?? null,
+          })),
+          total: count ?? 0,
+          page,
+          limit,
+        };
+      },
+    );
   }
 
   async getReport(
@@ -347,9 +365,69 @@ export class ReportsService {
       clerkUser.avatarUrl,
     );
 
+    return this.cache.getOrSet(
+      `user:${user.id}:report:${reportId}`,
+      REPORTS_TTL_MS,
+      async () => {
+        const { data: report, error } = await this.supabase.db
+          .from('health_reports')
+          .select('*')
+          .eq('id', reportId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error || !report) {
+          throw new NotFoundException({
+            code: 'REPORT_NOT_FOUND',
+            message: 'Report not found.',
+          });
+        }
+
+        const [{ data: metrics }, { data: analysis }] = await Promise.all([
+          this.supabase.db
+            .from('health_metrics')
+            .select('*')
+            .eq('report_id', reportId)
+            .order('metric_category'),
+          this.supabase.db
+            .from('health_analyses')
+            .select('*')
+            .eq('report_id', reportId)
+            .maybeSingle(),
+        ]);
+
+        const { data: signed } = await this.supabase.db.storage
+          .from('health-reports')
+          .createSignedUrl(report.file_url, 3600);
+
+        return {
+          report: report as DbHealthReport,
+          metrics: (metrics ?? []) as DbHealthMetric[],
+          analysis: (analysis as DbHealthAnalysis | null) ?? null,
+          downloadUrl: signed?.signedUrl ?? null,
+        };
+      },
+    );
+  }
+
+  async getStatus(
+    clerkUser: ClerkRequestUser,
+    reportId: string,
+  ): Promise<{
+    id: string;
+    processing_status: string;
+    error_message: string | null;
+  }> {
+    const user = await this.usersService.ensureUser(
+      clerkUser.clerkId,
+      clerkUser.email,
+      clerkUser.fullName,
+      clerkUser.avatarUrl,
+    );
+
     const { data: report, error } = await this.supabase.db
       .from('health_reports')
-      .select('*')
+      .select('id, processing_status, error_message')
       .eq('id', reportId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -361,44 +439,10 @@ export class ReportsService {
       });
     }
 
-    const [{ data: metrics }, { data: analysis }] = await Promise.all([
-      this.supabase.db
-        .from('health_metrics')
-        .select('*')
-        .eq('report_id', reportId)
-        .order('metric_category'),
-      this.supabase.db
-        .from('health_analyses')
-        .select('*')
-        .eq('report_id', reportId)
-        .maybeSingle(),
-    ]);
-
-    const { data: signed } = await this.supabase.db.storage
-      .from('health-reports')
-      .createSignedUrl(report.file_url, 3600);
-
     return {
-      report: report as DbHealthReport,
-      metrics: (metrics ?? []) as DbHealthMetric[],
-      analysis: (analysis as DbHealthAnalysis | null) ?? null,
-      downloadUrl: signed?.signedUrl ?? null,
-    };
-  }
-
-  async getStatus(
-    clerkUser: ClerkRequestUser,
-    reportId: string,
-  ): Promise<{
-    id: string;
-    processing_status: string;
-    error_message: string | null;
-  }> {
-    const detail = await this.getReport(clerkUser, reportId);
-    return {
-      id: detail.report.id,
-      processing_status: detail.report.processing_status,
-      error_message: detail.report.error_message,
+      id: report.id,
+      processing_status: report.processing_status,
+      error_message: report.error_message,
     };
   }
 
@@ -411,6 +455,7 @@ export class ReportsService {
       .from('health-reports')
       .remove([detail.report.file_url]);
     await this.supabase.db.from('health_reports').delete().eq('id', reportId);
+    this.invalidateUserCaches(detail.report.user_id);
   }
 
   async retryReport(
@@ -425,6 +470,7 @@ export class ReportsService {
       });
     }
     void this.processReport(reportId);
+    this.invalidateUserCaches(detail.report.user_id);
     return detail.report;
   }
 }

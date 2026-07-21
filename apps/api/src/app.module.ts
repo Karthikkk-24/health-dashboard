@@ -9,6 +9,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { ComparisonsModule } from './comparisons/comparisons.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PdfModule } from './pdf/pdf.module';
+import { AppCacheModule } from './common/cache/app-cache.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PdfModule } from './pdf/pdf.module';
         limit: 120,
       },
     ]),
+    AppCacheModule,
     SupabaseModule,
     PdfModule,
     UsersModule,

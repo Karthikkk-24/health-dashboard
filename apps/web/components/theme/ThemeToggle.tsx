@@ -18,7 +18,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface2 text-muted transition-colors hover:border-accent/40 hover:text-text"
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface2 text-muted transition-colors hover:border-accent/40 hover:text-text"
       aria-label={
         mounted
           ? isDark
