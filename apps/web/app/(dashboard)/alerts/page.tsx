@@ -18,8 +18,14 @@ export default function AlertsPage() {
 
   useEffect(() => {
     if (markedOnOpen.current || unread === 0 || alertsQuery.isPending) return;
-    markedOnOpen.current = true;
-    void markAll.mutateAsync();
+    void markAll
+      .mutateAsync()
+      .then(() => {
+        markedOnOpen.current = true;
+      })
+      .catch(() => {
+        // Leave flagged false so a later effect can retry
+      });
   }, [unread, alertsQuery.isPending, markAll]);
 
   if (alertsQuery.isPending && !alertsQuery.data) {

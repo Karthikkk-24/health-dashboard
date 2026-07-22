@@ -19,7 +19,10 @@ export function riskScoresNeedCompute(
   scores: RiskScores | null | undefined,
 ): boolean {
   if (!scores) return true;
-  return scores.ascvd == null && scores.metabolic == null;
+  if (scores.ascvd == null || scores.metabolic == null) return true;
+  if (scores.ascvd.status === 'incomplete') return true;
+  if (scores.metabolic.status === 'incomplete') return true;
+  return false;
 }
 
 @Injectable()
@@ -105,6 +108,7 @@ export class RiskService {
       return analysis;
     }
 
+    const previousJson = JSON.stringify(analysis.risk_scores ?? {});
     const riskScores = this.compute(
       metrics.map((m) => ({
         metric_name: m.metric_name,
@@ -113,6 +117,12 @@ export class RiskService {
       })),
       user,
     );
+    const nextJson = JSON.stringify(riskScores);
+    const changed = previousJson !== nextJson;
+
+    if (!changed) {
+      return { ...analysis, risk_scores: riskScores };
+    }
 
     const { error } = await this.supabase.db
       .from('health_analyses')

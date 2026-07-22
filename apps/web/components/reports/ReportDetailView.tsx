@@ -69,7 +69,9 @@ export function ReportDetailView({
         </div>
       </Card>
 
-      <RiskScoresCard riskScores={analysis?.risk_scores} />
+      {report.processing_status === 'completed' ? (
+        <RiskScoresCard riskScores={analysis?.risk_scores} />
+      ) : null}
 
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Summary</h2>
@@ -91,7 +93,9 @@ export function ReportDetailView({
 
       <ActionPlanView items={analysis?.action_plan ?? []} />
 
-      <ReportChatPanel reportId={report.id} />
+      {report.processing_status === 'completed' ? (
+        <ReportChatPanel reportId={report.id} />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
