@@ -94,7 +94,7 @@ export class ReportsController {
   }
 
   @Post(':id/chat')
-  @Throttle({ default: { limit: 30, ttl: 3600_000 } })
+  @Throttle({ default: { limit: 20, ttl: 3600_000 } })
   async postChat(
     @CurrentUser() user: ClerkRequestUser,
     @Param('id', ParseUUIDPipe) id: string,

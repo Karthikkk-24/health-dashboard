@@ -41,25 +41,36 @@ export class AlertsService {
     userId: string,
     newReportId: string,
     newMetrics: DbHealthMetric[],
+    newReportDate: string,
   ): Promise<void> {
-    const { data: priorReports } = await this.supabase.db
+    const { data: candidates } = await this.supabase.db
       .from('health_reports')
-      .select('id, report_date')
+      .select('id, report_date, uploaded_at')
       .eq('user_id', userId)
       .eq('processing_status', 'completed')
       .neq('id', newReportId)
+      .lte('report_date', newReportDate)
       .order('report_date', { ascending: false })
-      .limit(1);
+      .order('uploaded_at', { ascending: false })
+      .limit(10);
 
-    const prior = priorReports?.[0];
-    if (!prior) {
+    // Prefer strictly earlier report_date; else same-date older upload.
+    const priorReport =
+      (candidates ?? []).find(
+        (r: { report_date: string }) => r.report_date < newReportDate,
+      ) ??
+      (candidates ?? []).find(
+        (r: { report_date: string }) => r.report_date === newReportDate,
+      );
+
+    if (!priorReport) {
       return;
     }
 
     const { data: oldMetricsData } = await this.supabase.db
       .from('health_metrics')
       .select('*')
-      .eq('report_id', prior.id);
+      .eq('report_id', priorReport.id);
 
     const oldMetrics = (oldMetricsData ?? []) as DbHealthMetric[];
     const rows: Array<{

@@ -307,6 +307,7 @@ export class ReportsService {
         report.user_id,
         reportId,
         insertedMetrics,
+        report.report_date,
       );
 
       this.invalidateUserCaches(report.user_id);
@@ -448,10 +449,18 @@ export class ReportsService {
           .from('health-reports')
           .createSignedUrl(report.file_url, 3600);
 
+        const typedMetrics = (metrics ?? []) as DbHealthMetric[];
+        let typedAnalysis = (analysis as DbHealthAnalysis | null) ?? null;
+        typedAnalysis = await this.riskService.ensureAnalysisRiskScores(
+          user,
+          typedAnalysis,
+          typedMetrics,
+        );
+
         return {
           report: report as DbHealthReport,
-          metrics: (metrics ?? []) as DbHealthMetric[],
-          analysis: (analysis as DbHealthAnalysis | null) ?? null,
+          metrics: typedMetrics,
+          analysis: typedAnalysis,
           downloadUrl: signed?.signedUrl ?? null,
         };
       },
@@ -641,12 +650,22 @@ export class ReportsService {
       rawTextSlice: detail.report.raw_text?.slice(0, 4000) ?? null,
     });
 
-    await this.supabase.db.from('report_chat_messages').insert({
-      report_id: reportId,
-      user_id: userId,
-      role: 'assistant',
-      content: this.pdfService.sanitizeText(reply),
-    });
+    const { error: assistantError } = await this.supabase.db
+      .from('report_chat_messages')
+      .insert({
+        report_id: reportId,
+        user_id: userId,
+        role: 'assistant',
+        content: this.pdfService.sanitizeText(reply),
+      });
+
+    if (assistantError) {
+      throw new BadRequestException({
+        code: 'CHAT_REPLY_SAVE_FAILED',
+        message:
+          'Your message was saved, but the assistant reply could not be stored. Please try again.',
+      });
+    }
 
     return this.getChat(clerkUser, reportId);
   }

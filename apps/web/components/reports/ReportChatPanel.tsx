@@ -25,7 +25,9 @@ export function ReportChatPanel({ reportId }: { reportId: string }) {
     setDraft('');
     try {
       await sendChat.mutateAsync(text);
-    } finally {
+      setOptimistic(null);
+    } catch {
+      setDraft(text);
       setOptimistic(null);
     }
   };

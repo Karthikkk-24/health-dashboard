@@ -3,24 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
-import { useAlerts, useMarkAllAlertsRead } from '@/lib/queries';
+import { useAlerts, useMarkAlertRead } from '@/lib/queries';
 import { formatDate } from '@/lib/utils';
 
 export function AlertsBell() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const alertsQuery = useAlerts();
-  const markAll = useMarkAllAlertsRead();
-  const markedOnOpen = useRef(false);
+  const markRead = useMarkAlertRead();
 
   const unread = alertsQuery.data?.unread_count ?? 0;
   const alerts = alertsQuery.data?.alerts ?? [];
 
   useEffect(() => {
-    if (!open) {
-      markedOnOpen.current = false;
-      return;
-    }
+    if (!open) return;
     const onDoc = (event: MouseEvent) => {
       if (!panelRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -29,12 +25,6 @@ export function AlertsBell() {
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
-
-  useEffect(() => {
-    if (!open || markedOnOpen.current || unread === 0) return;
-    markedOnOpen.current = true;
-    void markAll.mutateAsync();
-  }, [open, unread, markAll]);
 
   return (
     <div className="relative" ref={panelRef}>
@@ -72,8 +62,15 @@ export function AlertsBell() {
                 <Link
                   key={alert.id}
                   href={`/reports/${alert.report_id}`}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg border border-border p-2 text-left text-xs transition-colors hover:bg-surface2"
+                  onClick={() => {
+                    if (!alert.read_at) {
+                      void markRead.mutateAsync(alert.id);
+                    }
+                    setOpen(false);
+                  }}
+                  className={`block rounded-lg border border-border p-2 text-left text-xs transition-colors hover:bg-surface2 ${
+                    alert.read_at ? 'opacity-70' : ''
+                  }`}
                 >
                   <p className="font-medium text-text">{alert.metric_name}</p>
                   <p className="mt-1 text-muted">{alert.message}</p>

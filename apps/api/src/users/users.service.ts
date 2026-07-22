@@ -9,6 +9,7 @@ import { DbUser } from '../common/dto/database.types';
 import { enrichProfile } from '../pdf/health-insights';
 import { UserHealthProfile } from '../pdf/pdf.types';
 import { AppCacheService } from '../common/cache/app-cache.service';
+import { RiskService } from '../risk/risk.service';
 
 export type HealthProfileUpdate = {
   date_of_birth?: string | null;
@@ -29,6 +30,7 @@ export class UsersService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly cache: AppCacheService,
+    private readonly riskService: RiskService,
   ) {}
 
   async ensureUser(
@@ -255,8 +257,31 @@ export class UsersService {
       throw new Error(`Failed to update profile: ${error?.message}`);
     }
 
+    const updated = data as DbUser;
     this.cache.invalidateUser(user.id);
-    return data as DbUser;
+
+    const riskAffecting =
+      update.date_of_birth !== undefined ||
+      update.sex !== undefined ||
+      update.height_cm !== undefined ||
+      update.weight_kg !== undefined ||
+      update.smoker !== undefined ||
+      update.has_diabetes !== undefined ||
+      update.on_bp_medication !== undefined;
+
+    if (riskAffecting) {
+      try {
+        await this.riskService.recomputeAllForUser(updated);
+      } catch (err) {
+        this.logger.warn(
+          `Risk recompute after profile update failed: ${
+            err instanceof Error ? err.message : 'unknown'
+          }`,
+        );
+      }
+    }
+
+    return updated;
   }
 
   async updatePreferences(

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,8 +12,15 @@ import { formatDate } from '@/lib/utils';
 export default function AlertsPage() {
   const alertsQuery = useAlerts();
   const markAll = useMarkAllAlertsRead();
+  const markedOnOpen = useRef(false);
   const alerts = alertsQuery.data?.alerts ?? [];
   const unread = alertsQuery.data?.unread_count ?? 0;
+
+  useEffect(() => {
+    if (markedOnOpen.current || unread === 0 || alertsQuery.isPending) return;
+    markedOnOpen.current = true;
+    void markAll.mutateAsync();
+  }, [unread, alertsQuery.isPending, markAll]);
 
   if (alertsQuery.isPending && !alertsQuery.data) {
     return <Skeleton className="h-64" />;

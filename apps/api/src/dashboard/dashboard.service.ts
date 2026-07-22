@@ -9,6 +9,7 @@ import {
   DbUser,
 } from '../common/dto/database.types';
 import { AppCacheService } from '../common/cache/app-cache.service';
+import { RiskService } from '../risk/risk.service';
 
 function metricMatches(name: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(name));
@@ -21,6 +22,7 @@ export class DashboardService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly usersService: UsersService,
+    private readonly riskService: RiskService,
     private readonly cache: AppCacheService,
   ) {}
 
@@ -86,9 +88,19 @@ export class DashboardService {
         new Date(b.report_date).getTime() - new Date(a.report_date).getTime(),
     )[0];
 
-    const latestAnalysis = latestReport
+    const latestAnalysisRaw = latestReport
       ? (analysisByReport.get(latestReport.id) ?? null)
       : null;
+
+    const latestMetrics = latestReport
+      ? metrics.filter((m) => m.report_id === latestReport.id)
+      : [];
+
+    const latestAnalysis = await this.riskService.ensureAnalysisRiskScores(
+      user,
+      latestAnalysisRaw,
+      latestMetrics,
+    );
 
     const healthScoreTrend = completed
       .map((report) => ({
@@ -130,10 +142,6 @@ export class DashboardService {
         name: glucose?.metric_name ?? 'Glucose',
       };
     });
-
-    const latestMetrics = latestReport
-      ? metrics.filter((m) => m.report_id === latestReport.id)
-      : [];
 
     const findChol = (pattern: RegExp) =>
       latestMetrics.find((m) => pattern.test(m.metric_name))?.metric_value ??

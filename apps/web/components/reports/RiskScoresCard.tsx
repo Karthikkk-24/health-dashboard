@@ -9,13 +9,12 @@ export function RiskScoresCard({
   riskScores?: RiskScores | null;
   compact?: boolean;
 }) {
-  if (!riskScores || (!riskScores.ascvd && !riskScores.metabolic)) {
-    return null;
-  }
+  const ascvd = riskScores?.ascvd;
+  const metabolic = riskScores?.metabolic;
+  const empty = !ascvd && !metabolic;
 
-  const ascvd = riskScores.ascvd;
-  const metabolic = riskScores.metabolic;
   const needsProfile =
+    empty ||
     (ascvd?.status === 'incomplete' && (ascvd.missing?.length ?? 0) > 0) ||
     (metabolic?.status === 'incomplete' &&
       (metabolic.missing?.length ?? 0) > 0);
@@ -60,7 +59,7 @@ export function RiskScoresCard({
                 Missing:{' '}
                 {ascvd?.status === 'incomplete'
                   ? ascvd.missing.join(', ')
-                  : 'inputs'}
+                  : 'smoking, diabetes, BP meds, age, sex, lipids, SBP'}
               </p>
             </>
           )}
@@ -80,7 +79,14 @@ export function RiskScoresCard({
               Not met ({metabolic.criteria_met}/{metabolic.criteria_needed})
             </p>
           ) : (
-            <p className="mt-2 text-sm text-muted">Needs more inputs</p>
+            <>
+              <p className="mt-2 text-sm text-muted">Needs more inputs</p>
+              {metabolic?.missing?.length ? (
+                <p className="mt-1 text-xs text-muted">
+                  Missing: {metabolic.missing.join(', ')}
+                </p>
+              ) : null}
+            </>
           )}
           {!compact && metabolic ? (
             <p className="mt-2 text-xs text-muted">{metabolic.note}</p>
