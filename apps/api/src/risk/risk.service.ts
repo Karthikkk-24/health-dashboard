@@ -25,6 +25,19 @@ export function riskScoresNeedCompute(
   return false;
 }
 
+/** Compare risk payloads ignoring computed_at timestamps. */
+export function riskScoresContentEqual(
+  a: RiskScores | null | undefined,
+  b: RiskScores | null | undefined,
+): boolean {
+  const strip = (scores: RiskScores | null | undefined) => {
+    if (!scores) return null;
+    const { computed_at: _ignored, ...rest } = scores;
+    return rest;
+  };
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
+}
+
 @Injectable()
 export class RiskService {
   private readonly logger = new Logger(RiskService.name);
@@ -108,7 +121,6 @@ export class RiskService {
       return analysis;
     }
 
-    const previousJson = JSON.stringify(analysis.risk_scores ?? {});
     const riskScores = this.compute(
       metrics.map((m) => ({
         metric_name: m.metric_name,
@@ -117,11 +129,9 @@ export class RiskService {
       })),
       user,
     );
-    const nextJson = JSON.stringify(riskScores);
-    const changed = previousJson !== nextJson;
 
-    if (!changed) {
-      return { ...analysis, risk_scores: riskScores };
+    if (riskScoresContentEqual(analysis.risk_scores, riskScores)) {
+      return analysis;
     }
 
     const { error } = await this.supabase.db

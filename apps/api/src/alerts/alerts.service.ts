@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UsersService } from '../users/users.service';
 import { ClerkRequestUser } from '../auth/clerk.guard';
@@ -217,11 +222,18 @@ export class AlertsService {
       clerkUser.avatarUrl,
     );
 
-    await this.supabase.db
+    const { error } = await this.supabase.db
       .from('metric_alerts')
       .update({ read_at: new Date().toISOString() })
       .eq('user_id', user.id)
       .is('read_at', null);
+
+    if (error) {
+      throw new BadRequestException({
+        code: 'ALERTS_MARK_ALL_FAILED',
+        message: error.message,
+      });
+    }
 
     this.cache.invalidateUser(user.id);
     return { ok: true };

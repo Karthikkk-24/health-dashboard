@@ -53,7 +53,8 @@ export function ReportDetailView({
                 Download original PDF
               </a>
             ) : null}
-            {onDownloadClinicianPdf ? (
+            {onDownloadClinicianPdf &&
+            report.processing_status === 'completed' ? (
               <button
                 type="button"
                 onClick={onDownloadClinicianPdf}
