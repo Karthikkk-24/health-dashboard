@@ -443,12 +443,25 @@ export class UsersService {
 
   async upsertFromClerkWebhook(payload: {
     id: string;
-    email_addresses?: Array<{ email_address: string }>;
+    primary_email_address_id?: string | null;
+    email_addresses?: Array<{
+      id?: string;
+      email_address: string;
+      verification?: { status?: string | null } | null;
+    }>;
     first_name?: string | null;
     last_name?: string | null;
     image_url?: string | null;
   }): Promise<DbUser> {
-    const email = payload.email_addresses?.[0]?.email_address ?? '';
+    // Prefer Clerk primary (and verified) email — never blindly use [0] (#30).
+    const addresses = payload.email_addresses ?? [];
+    const primary =
+      (payload.primary_email_address_id
+        ? addresses.find((a) => a.id === payload.primary_email_address_id)
+        : undefined) ??
+      addresses.find((a) => a.verification?.status === 'verified') ??
+      addresses[0];
+    const email = primary?.email_address ?? '';
     const fullName =
       [payload.first_name, payload.last_name].filter(Boolean).join(' ') || null;
     return this.ensureUser(payload.id, email, fullName, payload.image_url ?? null);
