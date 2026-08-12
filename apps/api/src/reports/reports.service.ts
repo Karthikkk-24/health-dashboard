@@ -370,7 +370,9 @@ export class ReportsService {
     page = 1,
     limit = 20,
   ): Promise<{
-    items: Array<DbHealthReport & { health_score: number | null }>;
+    items: Array<
+      Omit<DbHealthReport, 'raw_text'> & { health_score: number | null }
+    >;
     total: number;
     page: number;
     limit: number;
@@ -389,9 +391,13 @@ export class ReportsService {
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
+        // Omit OCR raw_text from list payloads (#21).
         const { data, error, count } = await this.supabase.db
           .from('health_reports')
-          .select('*', { count: 'exact' })
+          .select(
+            'id, user_id, file_name, file_url, file_hash, report_date, uploaded_at, processing_status, error_message, created_at, updated_at',
+            { count: 'exact' },
+          )
           .eq('user_id', user.id)
           .order('report_date', { ascending: false })
           .range(from, to);
@@ -403,7 +409,7 @@ export class ReportsService {
           });
         }
 
-        const reports = (data ?? []) as DbHealthReport[];
+        const reports = (data ?? []) as Omit<DbHealthReport, 'raw_text'>[];
         const ids = reports.map((r) => r.id);
         let scoreMap = new Map<string, number | null>();
 
