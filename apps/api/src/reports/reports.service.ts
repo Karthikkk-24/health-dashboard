@@ -166,6 +166,15 @@ export class ReportsService {
 
     if (error || !report) {
       await this.supabase.db.storage.from('health-reports').remove([storagePath]);
+      const isDuplicate =
+        error?.code === '23505' ||
+        /duplicate key|unique constraint/i.test(error?.message ?? '');
+      if (isDuplicate) {
+        throw new ConflictException({
+          code: 'DUPLICATE_REPORT',
+          message: 'This report was already uploaded for that date.',
+        });
+      }
       throw new BadRequestException({
         code: 'REPORT_CREATE_FAILED',
         message: error?.message ?? 'Could not create report.',
