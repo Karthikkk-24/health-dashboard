@@ -472,13 +472,17 @@ export function finalizeAnalysis(
   const attention = classified.filter((m) => m.status === 'needs_attention');
   const out = classified.filter((m) => m.status === 'out_of_range');
   const borderline = classified.filter((m) => m.status === 'borderline');
-  const score = Math.max(
-    35,
-    Math.min(
-      98,
-      92 - attention.length * 12 - out.length * 5 - borderline.length * 2,
-    ),
-  );
+  // Never invent a high baseline score when no labs were extracted (#28).
+  const score =
+    classified.length === 0
+      ? 0
+      : Math.max(
+          35,
+          Math.min(
+            98,
+            92 - attention.length * 12 - out.length * 5 - borderline.length * 2,
+          ),
+        );
 
   const summary =
     aiPartial?.summary && !/critical|severe|dangerous|alarming/i.test(aiPartial.summary)

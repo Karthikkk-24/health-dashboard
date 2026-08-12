@@ -223,6 +223,13 @@ export class ReportsService {
 
       const analysis = await this.pdfService.analyzeWithGemini(text, profile);
 
+      // Empty extractions metrics must not be marked completed with an inflated score (#28).
+      if (!analysis.metrics.length) {
+        throw new Error(
+          'No lab metrics could be extracted from this PDF. Please upload a clearer report or retry.',
+        );
+      }
+
       await this.supabase.db
         .from('health_metrics')
         .delete()
