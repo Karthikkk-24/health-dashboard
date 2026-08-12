@@ -517,11 +517,70 @@ export class ReportsService {
     reportId: string,
   ): Promise<void> {
     const detail = await this.getReport(clerkUser, reportId);
-    await this.supabase.db.storage
+    const userId = detail.report.user_id;
+    const storagePath = detail.report.file_url;
+
+    // report_comparisons FKs have no ON DELETE CASCADE — clear dependents first (#19).
+    const { error: comparisonsAError } = await this.supabase.db
+      .from('report_comparisons')
+      .delete()
+      .eq('user_id', userId)
+      .eq('report_a_id', reportId);
+    if (comparisonsAError) {
+      this.logger.error(
+        `Failed deleting comparisons (report_a) for ${reportId}: ${comparisonsAError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'REPORT_DELETE_FAILED',
+        message: 'Could not delete the report. Please try again.',
+      });
+    }
+
+    const { error: comparisonsBError } = await this.supabase.db
+      .from('report_comparisons')
+      .delete()
+      .eq('user_id', userId)
+      .eq('report_b_id', reportId);
+    if (comparisonsBError) {
+      this.logger.error(
+        `Failed deleting comparisons (report_b) for ${reportId}: ${comparisonsBError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'REPORT_DELETE_FAILED',
+        message: 'Could not delete the report. Please try again.',
+      });
+    }
+
+    const { error: deleteError } = await this.supabase.db
+      .from('health_reports')
+      .delete()
+      .eq('id', reportId)
+      .eq('user_id', userId);
+    if (deleteError) {
+      this.logger.error(
+        `Failed deleting health_reports row ${reportId}: ${deleteError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'REPORT_DELETE_FAILED',
+        message: 'Could not delete the report. Please try again.',
+      });
+    }
+
+    const { error: storageError } = await this.supabase.db.storage
       .from('health-reports')
-      .remove([detail.report.file_url]);
-    await this.supabase.db.from('health_reports').delete().eq('id', reportId);
-    this.invalidateUserCaches(detail.report.user_id);
+      .remove([storagePath]);
+    if (storageError) {
+      this.logger.error(
+        `Report ${reportId} DB row deleted but storage remove failed: ${storageError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'REPORT_STORAGE_DELETE_FAILED',
+        message:
+          'Report metadata was deleted but the stored PDF could not be removed. Please retry or contact support.',
+      });
+    }
+
+    this.invalidateUserCaches(userId);
   }
 
   async retryReport(
