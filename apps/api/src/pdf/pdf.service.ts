@@ -9,6 +9,9 @@ import {
   UserHealthProfile,
 } from './pdf.types';
 
+const MAX_PDF_PAGES = 50;
+const PDF_PARSE_TIMEOUT_MS = 15_000;
+
 @Injectable()
 export class PdfService {
   private readonly logger = new Logger(PdfService.name);
@@ -29,12 +32,35 @@ export class PdfService {
       .slice(0, 100_000);
   }
 
+  private withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    label: string,
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`${label} timed out after ${ms}ms`));
+      }, ms);
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error: unknown) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
+    });
+  }
+
   async extractText(buffer: Buffer): Promise<string> {
     // pdf-parse v2 exports PDFParse class (not a callable function)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParseModule = require('pdf-parse') as {
       PDFParse: new (options: { data: Buffer | Uint8Array }) => {
-        getText: () => Promise<{ text?: string }>;
+        getInfo: () => Promise<{ total: number }>;
+        getText: (params?: { first?: number }) => Promise<{ text?: string }>;
         destroy?: () => Promise<void>;
       };
     };
@@ -45,7 +71,26 @@ export class PdfService {
 
     const parser = new pdfParseModule.PDFParse({ data: buffer });
     try {
-      const result = await parser.getText();
+      // Bound page count and wall-clock time to reduce parse DoS (#23).
+      const info = await this.withTimeout(
+        parser.getInfo(),
+        PDF_PARSE_TIMEOUT_MS,
+        'PDF info',
+      );
+      if (!info?.total || info.total < 1) {
+        throw new Error('PDF has no readable pages');
+      }
+      if (info.total > MAX_PDF_PAGES) {
+        throw new Error(
+          `PDF exceeds the maximum of ${MAX_PDF_PAGES} pages (${info.total} found)`,
+        );
+      }
+
+      const result = await this.withTimeout(
+        parser.getText({ first: MAX_PDF_PAGES }),
+        PDF_PARSE_TIMEOUT_MS,
+        'PDF text extraction',
+      );
       return this.sanitizeText(result.text ?? '');
     } finally {
       if (typeof parser.destroy === 'function') {
