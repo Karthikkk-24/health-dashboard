@@ -1,13 +1,14 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Headers,
+  Logger,
   Patch,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +22,8 @@ import { UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
@@ -34,33 +37,41 @@ export class UsersController {
     @Headers('svix-signature') svixSignature: string | undefined,
     @Body() body: Record<string, unknown>,
   ): Promise<{ ok: boolean }> {
-    const secret = this.config.get<string>('CLERK_WEBHOOK_SECRET');
+    // Fail closed: never accept unsigned webhooks (fixes #1).
+    const secret = this.config.get<string>('CLERK_WEBHOOK_SECRET')?.trim();
+    if (!secret) {
+      this.logger.error(
+        'CLERK_WEBHOOK_SECRET is not configured; rejecting webhook',
+      );
+      throw new UnauthorizedException({
+        code: 'WEBHOOK_UNAUTHORIZED',
+        message: 'Webhook authentication failed.',
+      });
+    }
 
-    if (secret) {
-      if (!svixId || !svixTimestamp || !svixSignature) {
-        throw new BadRequestException({
-          code: 'MISSING_SVIX_HEADERS',
-          message: 'Webhook signature headers are required.',
-        });
-      }
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      throw new UnauthorizedException({
+        code: 'WEBHOOK_UNAUTHORIZED',
+        message: 'Webhook authentication failed.',
+      });
+    }
 
-      const wh = new Webhook(secret);
-      const payload = req.rawBody
-        ? req.rawBody.toString('utf8')
-        : JSON.stringify(body);
+    const wh = new Webhook(secret);
+    const payload = req.rawBody
+      ? req.rawBody.toString('utf8')
+      : JSON.stringify(body);
 
-      try {
-        wh.verify(payload, {
-          'svix-id': svixId,
-          'svix-timestamp': svixTimestamp,
-          'svix-signature': svixSignature,
-        });
-      } catch {
-        throw new BadRequestException({
-          code: 'INVALID_WEBHOOK_SIGNATURE',
-          message: 'Webhook signature verification failed.',
-        });
-      }
+    try {
+      wh.verify(payload, {
+        'svix-id': svixId,
+        'svix-timestamp': svixTimestamp,
+        'svix-signature': svixSignature,
+      });
+    } catch {
+      throw new UnauthorizedException({
+        code: 'WEBHOOK_UNAUTHORIZED',
+        message: 'Webhook authentication failed.',
+      });
     }
 
     const type = String(body.type ?? '');

@@ -59,14 +59,16 @@ pnpm --filter @health-dashboard/web dev
 - Web: http://localhost:3000
 - API: http://localhost:3001/api/v1
 
-## Clerk webhook (optional but recommended)
+## Clerk webhook
+
+`POST /api/v1/users/sync` **always** verifies the Svix signature. Requests are rejected if `CLERK_WEBHOOK_SECRET` is missing or the signature is invalid.
 
 1. Clerk Dashboard → Webhooks → Add endpoint
 2. URL: `https://<your-api-host>/api/v1/users/sync`
 3. Events: `user.created`, `user.updated`
-4. Paste signing secret into `CLERK_WEBHOOK_SECRET`
+4. Paste signing secret into `CLERK_WEBHOOK_SECRET` (required for the webhook endpoint)
 
-The API also upserts the user on first authenticated request, so local development works without a webhook.
+The API also upserts the user on first authenticated request, so local development works without configuring a Clerk webhook endpoint.
 
 ## Key flows
 
