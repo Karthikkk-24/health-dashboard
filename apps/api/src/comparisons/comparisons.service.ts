@@ -13,6 +13,8 @@ import {
   DbReportComparison,
 } from '../common/dto/database.types';
 
+const MAX_COMPARISONS_PER_HOUR = 10;
+
 interface MetricDiff {
   metric_name: string;
   category: string;
@@ -76,6 +78,20 @@ export class ComparisonsService {
       clerkUser.fullName,
       clerkUser.avatarUrl,
     );
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count } = await this.supabase.db
+      .from('report_comparisons')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', oneHourAgo);
+
+    if ((count ?? 0) >= MAX_COMPARISONS_PER_HOUR) {
+      throw new BadRequestException({
+        code: 'COMPARISON_RATE_LIMITED',
+        message: 'Comparison limit of 10 per hour exceeded.',
+      });
+    }
 
     const { data: reports, error } = await this.supabase.db
       .from('health_reports')

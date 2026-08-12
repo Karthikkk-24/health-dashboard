@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ClerkAuthGuard, ClerkRequestUser } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateComparisonDto } from './dto/create-comparison.dto';
@@ -10,6 +11,7 @@ export class ComparisonsController {
   constructor(private readonly comparisonsService: ComparisonsService) {}
 
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 3600_000 } })
   async create(
     @CurrentUser() user: ClerkRequestUser,
     @Body() body: CreateComparisonDto,

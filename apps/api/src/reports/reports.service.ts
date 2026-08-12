@@ -24,6 +24,7 @@ import { AlertsService } from '../alerts/alerts.service';
 
 const MAX_UPLOADS_PER_HOUR = 10;
 const MAX_CHAT_PER_HOUR = 20;
+const MAX_RETRIES_PER_HOUR = 10;
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
 const REPORTS_TTL_MS = 5 * 60_000;
 
@@ -601,6 +602,23 @@ export class ReportsService {
         message: 'Only failed reports can be retried.',
       });
     }
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    // Retries of older uploads: updated recently but uploaded outside the window.
+    const { count } = await this.supabase.db
+      .from('health_reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', detail.report.user_id)
+      .gte('updated_at', oneHourAgo)
+      .lt('uploaded_at', oneHourAgo);
+
+    if ((count ?? 0) >= MAX_RETRIES_PER_HOUR) {
+      throw new BadRequestException({
+        code: 'RETRY_RATE_LIMITED',
+        message: 'Retry limit of 10 reports per hour exceeded.',
+      });
+    }
+
     void this.processReport(reportId);
     this.invalidateUserCaches(detail.report.user_id);
     return detail.report;
