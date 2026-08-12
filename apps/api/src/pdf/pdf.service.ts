@@ -640,9 +640,16 @@ export class PdfService {
         ];
 
         for (const turn of input.history.slice(-10)) {
+          // Never flatten history as "role: text" — that enabled role spoofing (#26).
+          // Use Gemini chat roles only; wrap prior content as untrusted data.
+          const safeContent = neutralize(turn.content).replace(/\n+/g, ' ');
           history.push({
             role: turn.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: neutralize(turn.content) }],
+            parts: [
+              {
+                text: `<untrusted_prior_message>\n${safeContent}\n</untrusted_prior_message>`,
+              },
+            ],
           });
         }
 
