@@ -6,7 +6,10 @@
     "dev:web": "pnpm --filter @health-dashboard/web dev",
     "dev:api": "pnpm --filter @health-dashboard/api start:dev",
     "build": "pnpm -r run build",
-    "lint": "pnpm -r run lint"
+    "lint": "pnpm -r run lint",
+    "test": "pnpm --filter @health-dashboard/api test",
+    "typecheck": "pnpm --filter @health-dashboard/api exec tsc --noEmit && pnpm --filter @health-dashboard/web exec tsc --noEmit",
+    "ci": "pnpm typecheck && pnpm test"
   },
   "engines": {
     "node": ">=20"
