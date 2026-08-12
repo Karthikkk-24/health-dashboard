@@ -43,7 +43,21 @@ export const GeminiAnalysisSchema = z.object({
   overall_health_score: z.number().min(0).max(100),
 });
 
+/** Lenient schema for raw Gemini JSON before finalizeAnalysis (#8). */
+export const GeminiRawResponseSchema = z.object({
+  metrics: z.array(ExtractedMetricSchema).default([]),
+  summary: z.string().optional(),
+  risks: z.array(z.string()).optional(),
+  current_issues: z.array(z.string()).optional(),
+  potential_issues: z.array(z.string()).optional(),
+  recommendations: z.array(z.string()).optional(),
+  positive_indicators: z.array(z.string()).optional(),
+  action_plan: z.array(ActionPlanItemSchema).optional(),
+  overall_health_score: z.number().min(0).max(100).optional(),
+});
+
 export type GeminiAnalysis = z.infer<typeof GeminiAnalysisSchema>;
+export type GeminiRawResponse = z.infer<typeof GeminiRawResponseSchema>;
 export type ExtractedMetric = z.infer<typeof ExtractedMetricSchema>;
 export type ActionPlanItem = z.infer<typeof ActionPlanItemSchema>;
 export type MetricStatus = z.infer<typeof MetricStatusSchema>;

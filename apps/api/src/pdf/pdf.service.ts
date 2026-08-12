@@ -5,7 +5,7 @@ import { finalizeAnalysis } from './health-insights';
 import {
   GEMINI_EXTRACTION_PROMPT,
   GeminiAnalysis,
-  GeminiAnalysisSchema,
+  GeminiRawResponseSchema,
   UserHealthProfile,
 } from './pdf.types';
 
@@ -464,18 +464,28 @@ export class PdfService {
           }),
         ]);
         const raw = result.response.text();
-        const parsed = JSON.parse(this.extractJson(raw)) as {
-          metrics?: GeminiAnalysis['metrics'];
-          summary?: string;
-          risks?: string[];
-          current_issues?: string[];
-          potential_issues?: string[];
-          recommendations?: string[];
-          positive_indicators?: string[];
-          action_plan?: GeminiAnalysis['action_plan'];
-          overall_health_score?: number;
-        };
-        return finalizeAnalysis(parsed.metrics ?? [], profile, parsed);
+        let parsedJson: unknown;
+        try {
+          parsedJson = JSON.parse(this.extractJson(raw));
+        } catch {
+          throw new Error(`Gemini returned non-JSON for ${modelName}`);
+        }
+
+        const validated = GeminiRawResponseSchema.safeParse(parsedJson);
+        if (!validated.success) {
+          throw new Error(
+            `Gemini JSON schema validation failed: ${validated.error.issues
+              .slice(0, 3)
+              .map((i) => i.message)
+              .join('; ')}`,
+          );
+        }
+
+        return finalizeAnalysis(
+          validated.data.metrics,
+          profile,
+          validated.data,
+        );
       } catch (error) {
         lastError =
           error instanceof Error ? error : new Error('Gemini analysis failed');
