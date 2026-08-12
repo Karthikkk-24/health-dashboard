@@ -47,6 +47,40 @@ export class UsersService {
     fullName: string | null = null,
     avatarUrl: string | null = null,
   ): Promise<DbUser> {
+    const existing = await this.findByClerkId(clerkId);
+    if (existing) {
+      // Never overwrite a real email with empty/synthetic when Clerk omits email (#29).
+      const patch: Record<string, string> = {};
+      if (email) {
+        patch.email = email;
+      }
+      if (fullName) {
+        patch.full_name = fullName;
+      }
+      if (avatarUrl) {
+        patch.avatar_url = avatarUrl;
+      }
+      if (Object.keys(patch).length === 0) {
+        return existing;
+      }
+
+      const { data: updated, error: updateError } = await this.supabase.db
+        .from('users')
+        .update(patch)
+        .eq('clerk_id', clerkId)
+        .select('*')
+        .single();
+
+      if (!updateError && updated) {
+        return updated as DbUser;
+      }
+
+      this.logger.warn(
+        `ensureUser update failed for ${clerkId}: ${updateError?.message ?? 'unknown'}`,
+      );
+      return existing;
+    }
+
     const payload: Record<string, string> = {
       clerk_id: clerkId,
       email: email || `${clerkId}@users.clerk`,
@@ -60,7 +94,7 @@ export class UsersService {
 
     const { data, error } = await this.supabase.db
       .from('users')
-      .upsert(payload, { onConflict: 'clerk_id' })
+      .insert(payload)
       .select('*')
       .single();
 
@@ -68,28 +102,16 @@ export class UsersService {
       return data as DbUser;
     }
 
-    const existing = await this.findByClerkId(clerkId);
-    if (existing) {
-      if (fullName || avatarUrl || email) {
-        const { data: updated } = await this.supabase.db
-          .from('users')
-          .update({
-            email: email || existing.email,
-            ...(fullName ? { full_name: fullName } : {}),
-            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-          })
-          .eq('clerk_id', clerkId)
-          .select('*')
-          .single();
-        if (updated) {
-          return updated as DbUser;
-        }
+    // Concurrent first insert — load the winner.
+    if (error?.code === '23505' || /duplicate key|unique constraint/i.test(error?.message ?? '')) {
+      const raced = await this.findByClerkId(clerkId);
+      if (raced) {
+        return raced;
       }
-      return existing;
     }
 
     this.logger.error(
-      `Failed to upsert user ${clerkId}: ${error?.message ?? 'unknown'}`,
+      `Failed to create user ${clerkId}: ${error?.message ?? 'unknown'}`,
     );
     throw new Error(`Failed to create user: ${error?.message ?? 'unknown'}`);
   }
