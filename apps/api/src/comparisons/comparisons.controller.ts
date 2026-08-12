@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { ClerkAuthGuard, ClerkRequestUser } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { CreateComparisonDto } from './dto/create-comparison.dto';
 import { ComparisonsService } from './comparisons.service';
 
 @Controller('comparisons')
@@ -11,7 +12,7 @@ export class ComparisonsController {
   @Post()
   async create(
     @CurrentUser() user: ClerkRequestUser,
-    @Body() body: { reportAId: string; reportBId: string },
+    @Body() body: CreateComparisonDto,
   ) {
     const comparison = await this.comparisonsService.createComparison(
       user,

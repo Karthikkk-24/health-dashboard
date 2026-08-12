@@ -18,6 +18,7 @@ import { Webhook } from 'svix';
 import { ClerkAuthGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ClerkRequestUser } from '../auth/clerk.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -113,18 +114,7 @@ export class UsersController {
   @UseGuards(ClerkAuthGuard)
   async updateMe(
     @CurrentUser() user: ClerkRequestUser,
-    @Body()
-    body: {
-      notification_preferences?: { email?: boolean; report_ready?: boolean };
-      date_of_birth?: string | null;
-      sex?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
-      height_cm?: number | null;
-      weight_kg?: number | null;
-      activity_level?: 'sedentary' | 'light' | 'moderate' | 'active' | null;
-      smoker?: boolean | null;
-      has_diabetes?: boolean | null;
-      on_bp_medication?: boolean | null;
-    },
+    @Body() body: UpdateProfileDto,
   ) {
     await this.usersService.ensureUser(
       user.clerkId,
