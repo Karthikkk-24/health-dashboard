@@ -62,8 +62,6 @@ health-dashboard/
 │   │   │   ├── (auth)/               # Public auth routes
 │   │   │   │   ├── sign-in/[[...sign-in]]/page.tsx
 │   │   │   │   └── sign-up/[[...sign-up]]/page.tsx
-│   │   │   ├── (marketing)/          # Public landing page
-│   │   │   │   └── page.tsx          # Landing page
 │   │   │   ├── (dashboard)/          # Protected app routes
 │   │   │   │   ├── layout.tsx        # Sidebar + Navbar shell
 │   │   │   │   ├── dashboard/page.tsx
@@ -71,6 +69,7 @@ health-dashboard/
 │   │   │   │   ├── reports/page.tsx
 │   │   │   │   ├── stats/page.tsx
 │   │   │   │   └── settings/page.tsx
+│   │   │   ├── page.tsx              # Public landing page
 │   │   │   ├── layout.tsx            # Root layout with ClerkProvider
 │   │   │   └── globals.css
 │   │   ├── components/
