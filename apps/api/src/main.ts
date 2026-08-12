@@ -17,6 +17,25 @@ async function bootstrap(): Promise<void> {
     .filter(Boolean);
 
   app.setGlobalPrefix('api/v1');
+
+  // Behind Render/nginx, trust X-Forwarded-For so req.ip is the client (#22).
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  const trustProxy = config.get<string>('TRUST_PROXY');
+  if (trustProxy === undefined || trustProxy === '') {
+    if (config.get<string>('NODE_ENV') === 'production') {
+      expressApp.set('trust proxy', 1);
+    }
+  } else if (trustProxy === 'true' || trustProxy === '1') {
+    expressApp.set('trust proxy', 1);
+  } else if (trustProxy === 'false' || trustProxy === '0') {
+    expressApp.set('trust proxy', false);
+  } else {
+    const asNumber = Number(trustProxy);
+    expressApp.set('trust proxy', Number.isFinite(asNumber) ? asNumber : trustProxy);
+  }
+
   app.enableCors({
     origin: origins,
     credentials: true,
