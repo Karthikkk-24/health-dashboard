@@ -179,20 +179,27 @@ export class ReportsService {
   }
 
   async processReport(reportId: string, buffer?: Buffer): Promise<void> {
-    const { data: report } = await this.supabase.db
-      .from('health_reports')
-      .select('*')
-      .eq('id', reportId)
-      .single();
-
-    if (!report) {
-      return;
-    }
-
-    await this.supabase.db
+    // Atomic claim: only one worker may transition pending/failed → processing (#20).
+    const { data: report, error: claimError } = await this.supabase.db
       .from('health_reports')
       .update({ processing_status: 'processing', error_message: null })
-      .eq('id', reportId);
+      .eq('id', reportId)
+      .in('processing_status', ['pending', 'failed'])
+      .select('*')
+      .maybeSingle();
+
+    if (claimError) {
+      this.logger.error(
+        `processReport ${reportId} claim failed: ${claimError.message}`,
+      );
+      return;
+    }
+    if (!report) {
+      this.logger.warn(
+        `processReport ${reportId}: skipped (already processing, completed, or missing)`,
+      );
+      return;
+    }
 
     try {
       let pdfBuffer = buffer;
@@ -278,19 +285,22 @@ export class ReportsService {
 
       const { error: analysisError } = await this.supabase.db
         .from('health_analyses')
-        .insert({
-          report_id: reportId,
-          user_id: report.user_id,
-          overall_health_score: analysis.overall_health_score,
-          summary: this.pdfService.sanitizeText(analysis.summary),
-          risks: analysis.risks,
-          current_issues: analysis.current_issues,
-          potential_issues: analysis.potential_issues,
-          recommendations: analysis.recommendations,
-          positive_indicators: analysis.positive_indicators,
-          action_plan: analysis.action_plan,
-          risk_scores: riskScores,
-        });
+        .upsert(
+          {
+            report_id: reportId,
+            user_id: report.user_id,
+            overall_health_score: analysis.overall_health_score,
+            summary: this.pdfService.sanitizeText(analysis.summary),
+            risks: analysis.risks,
+            current_issues: analysis.current_issues,
+            potential_issues: analysis.potential_issues,
+            recommendations: analysis.recommendations,
+            positive_indicators: analysis.positive_indicators,
+            action_plan: analysis.action_plan,
+            risk_scores: riskScores,
+          },
+          { onConflict: 'report_id' },
+        );
 
       if (analysisError) {
         throw new Error(analysisError.message);
