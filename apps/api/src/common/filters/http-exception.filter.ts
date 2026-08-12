@@ -47,8 +47,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      this.logger.error(exception.message, exception.stack);
+      // Never leak internal Error.message to clients (fixes #7).
+      this.logger.error(
+        `[${requestId}] ${exception.message}`,
+        exception.stack,
+      );
+      message = 'An unexpected error occurred.';
+      code = 'INTERNAL_ERROR';
+    } else {
+      this.logger.error(`[${requestId}] Non-Error throw`, exception as string);
     }
 
     response.status(status).json({
