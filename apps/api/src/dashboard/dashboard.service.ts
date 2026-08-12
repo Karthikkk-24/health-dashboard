@@ -15,7 +15,7 @@ function metricMatches(name: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(name));
 }
 
-const DASHBOARD_TTL_MS = 5 * 60_000;
+const DASHBOARD_TTL_MS = 60_000;
 
 @Injectable()
 export class DashboardService {

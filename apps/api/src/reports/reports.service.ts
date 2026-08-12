@@ -26,7 +26,8 @@ const MAX_UPLOADS_PER_HOUR = 10;
 const MAX_CHAT_PER_HOUR = 20;
 const MAX_RETRIES_PER_HOUR = 10;
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
-const REPORTS_TTL_MS = 5 * 60_000;
+/** Short TTL — list summaries only; full report detail is not cached (#16). */
+const REPORTS_TTL_MS = 60_000;
 
 @Injectable()
 export class ReportsService {
@@ -450,57 +451,52 @@ export class ReportsService {
       clerkUser.avatarUrl,
     );
 
-    return this.cache.getOrSet(
-      `user:${user.id}:report:${reportId}`,
-      REPORTS_TTL_MS,
-      async () => {
-        const { data: report, error } = await this.supabase.db
-          .from('health_reports')
-          .select('*')
-          .eq('id', reportId)
-          .eq('user_id', user.id)
-          .maybeSingle();
+    // Do not cache full report detail (OCR raw_text + metrics + analysis) (#16).
+    const { data: report, error } = await this.supabase.db
+      .from('health_reports')
+      .select('*')
+      .eq('id', reportId)
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-        if (error || !report) {
-          throw new NotFoundException({
-            code: 'REPORT_NOT_FOUND',
-            message: 'Report not found.',
-          });
-        }
+    if (error || !report) {
+      throw new NotFoundException({
+        code: 'REPORT_NOT_FOUND',
+        message: 'Report not found.',
+      });
+    }
 
-        const [{ data: metrics }, { data: analysis }] = await Promise.all([
-          this.supabase.db
-            .from('health_metrics')
-            .select('*')
-            .eq('report_id', reportId)
-            .order('metric_category'),
-          this.supabase.db
-            .from('health_analyses')
-            .select('*')
-            .eq('report_id', reportId)
-            .maybeSingle(),
-        ]);
+    const [{ data: metrics }, { data: analysis }] = await Promise.all([
+      this.supabase.db
+        .from('health_metrics')
+        .select('*')
+        .eq('report_id', reportId)
+        .order('metric_category'),
+      this.supabase.db
+        .from('health_analyses')
+        .select('*')
+        .eq('report_id', reportId)
+        .maybeSingle(),
+    ]);
 
-        const { data: signed } = await this.supabase.db.storage
-          .from('health-reports')
-          .createSignedUrl(report.file_url, 3600);
+    const { data: signed } = await this.supabase.db.storage
+      .from('health-reports')
+      .createSignedUrl(report.file_url, 3600);
 
-        const typedMetrics = (metrics ?? []) as DbHealthMetric[];
-        let typedAnalysis = (analysis as DbHealthAnalysis | null) ?? null;
-        typedAnalysis = await this.riskService.ensureAnalysisRiskScores(
-          user,
-          typedAnalysis,
-          typedMetrics,
-        );
-
-        return {
-          report: report as DbHealthReport,
-          metrics: typedMetrics,
-          analysis: typedAnalysis,
-          downloadUrl: signed?.signedUrl ?? null,
-        };
-      },
+    const typedMetrics = (metrics ?? []) as DbHealthMetric[];
+    let typedAnalysis = (analysis as DbHealthAnalysis | null) ?? null;
+    typedAnalysis = await this.riskService.ensureAnalysisRiskScores(
+      user,
+      typedAnalysis,
+      typedMetrics,
     );
+
+    return {
+      report: report as DbHealthReport,
+      metrics: typedMetrics,
+      analysis: typedAnalysis,
+      downloadUrl: signed?.signedUrl ?? null,
+    };
   }
 
   async getStatus(
