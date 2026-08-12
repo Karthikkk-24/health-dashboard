@@ -36,8 +36,6 @@ export default function SettingsPage() {
   const updateProfile = useUpdateProfile();
   const deleteAllData = useDeleteAllData();
   const profile = meQuery.data?.user ?? null;
-  const [emailPref, setEmailPref] = useState(true);
-  const [reportReadyPref, setReportReadyPref] = useState(true);
   const [dob, setDob] = useState('');
   const [sex, setSex] = useState<UserProfile['sex']>(null);
   const [heightCm, setHeightCm] = useState('');
@@ -58,8 +56,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!profile || hydrated) return;
-    setEmailPref(profile.notification_preferences?.email ?? true);
-    setReportReadyPref(profile.notification_preferences?.report_ready ?? true);
     setDob(profile.date_of_birth ?? '');
     setSex(profile.sex ?? null);
     setHeightCm(profile.height_cm != null ? String(profile.height_cm) : '');
@@ -83,10 +79,6 @@ export default function SettingsPage() {
         smoker,
         has_diabetes: hasDiabetes,
         on_bp_medication: onBpMeds,
-        notification_preferences: {
-          email: emailPref,
-          report_ready: reportReadyPref,
-        },
       });
       setMessage(
         result.profile_complete
@@ -266,26 +258,13 @@ export default function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="space-y-2">
         <h2 className="text-lg font-semibold">Notifications</h2>
-        <label className="flex cursor-pointer items-center justify-between gap-4 text-sm">
-          <span>Email updates</span>
-          <input
-            type="checkbox"
-            checked={emailPref}
-            onChange={(event) => setEmailPref(event.target.checked)}
-            className="h-4 w-4 accent-accent"
-          />
-        </label>
-        <label className="flex cursor-pointer items-center justify-between gap-4 text-sm">
-          <span>Notify when report analysis is ready</span>
-          <input
-            type="checkbox"
-            checked={reportReadyPref}
-            onChange={(event) => setReportReadyPref(event.target.checked)}
-            className="h-4 w-4 accent-accent"
-          />
-        </label>
+        <p className="text-sm text-muted">
+          Email notifications are not available yet. In-app alerts for metric
+          changes remain on the Alerts page. Preference toggles will return when
+          a mailer is configured.
+        </p>
       </Card>
 
       <Button onClick={() => void saveHealthProfile()} disabled={saving}>
