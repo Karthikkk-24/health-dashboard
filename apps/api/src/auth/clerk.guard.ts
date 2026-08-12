@@ -59,7 +59,8 @@ export class ClerkAuthGuard implements CanActivate {
 
     let payload: { sub?: string; email?: unknown; azp?: string };
     try {
-      // Only enforce azp when the token includes it (avoids rejecting older/session variants).
+      // Always enforce authorizedParties when configured — never retry without
+      // the check (that would accept tokens issued for another party). Fixes #2.
       const verifyOptions: {
         secretKey: string;
         clockSkewInMs: number;
@@ -69,9 +70,6 @@ export class ClerkAuthGuard implements CanActivate {
         clockSkewInMs: 15_000,
       };
 
-      // Peek azp without full verify by decoding middle segment is brittle; pass parties
-      // only when configured. Tokens without azp skip this claim inside Clerk when empty —
-      // so keep parties unset if empty, otherwise Clerk requires azp to match.
       if (this.authorizedParties.length > 0) {
         verifyOptions.authorizedParties = this.authorizedParties;
       }
@@ -81,27 +79,10 @@ export class ClerkAuthGuard implements CanActivate {
       const reason =
         error instanceof Error ? error.message : 'Token verification failed';
       this.logger.warn(`Clerk token verification failed: ${reason}`);
-
-      // Retry once without authorizedParties — some Clerk session tokens omit azp.
-      try {
-        payload = await verifyToken(token, {
-          secretKey: this.secretKey,
-          clockSkewInMs: 15_000,
-        });
-        this.logger.warn(
-          'Token verified only after skipping authorizedParties check',
-        );
-      } catch (retryError) {
-        const retryReason =
-          retryError instanceof Error
-            ? retryError.message
-            : 'Token verification failed';
-        this.logger.warn(`Clerk token retry failed: ${retryReason}`);
-        throw new UnauthorizedException({
-          code: 'INVALID_TOKEN',
-          message: 'Invalid or expired authentication token.',
-        });
-      }
+      throw new UnauthorizedException({
+        code: 'INVALID_TOKEN',
+        message: 'Invalid or expired authentication token.',
+      });
     }
 
     const clerkId = payload?.sub;
