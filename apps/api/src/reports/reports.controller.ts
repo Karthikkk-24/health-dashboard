@@ -114,6 +114,7 @@ export class ReportsController {
   }
 
   @Post(':id/retry')
+  @Throttle({ default: { limit: 10, ttl: 3600_000 } })
   async retry(
     @CurrentUser() user: ClerkRequestUser,
     @Param('id', ParseUUIDPipe) id: string,
