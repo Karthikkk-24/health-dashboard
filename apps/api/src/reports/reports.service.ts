@@ -46,10 +46,19 @@ export class ReportsService {
   }
 
   private assertPdf(buffer: Buffer, mimeType: string): void {
-    const looksPdf =
-      buffer.subarray(0, 4).equals(PDF_MAGIC) ||
-      mimeType === 'application/pdf';
-    if (!looksPdf) {
+    // Require PDF magic bytes — never trust Content-Type alone (fixes #3).
+    const hasPdfMagic = buffer.subarray(0, 4).equals(PDF_MAGIC);
+    if (!hasPdfMagic) {
+      throw new BadRequestException({
+        code: 'INVALID_FILE_TYPE',
+        message: 'Only PDF files are accepted.',
+      });
+    }
+    if (
+      mimeType &&
+      mimeType !== 'application/pdf' &&
+      mimeType !== 'application/octet-stream'
+    ) {
       throw new BadRequestException({
         code: 'INVALID_FILE_TYPE',
         message: 'Only PDF files are accepted.',
