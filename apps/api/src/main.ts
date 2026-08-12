@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -24,7 +25,7 @@ async function bootstrap(): Promise<void> {
   });
 
   // Baseline security headers (fixes #11).
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');

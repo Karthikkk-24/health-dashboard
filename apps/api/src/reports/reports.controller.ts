@@ -18,6 +18,8 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { ClerkAuthGuard, ClerkRequestUser } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { PostChatDto } from './dto/post-chat.dto';
+import { UploadReportDto } from './dto/upload-report.dto';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
@@ -36,12 +38,12 @@ export class ReportsController {
   async upload(
     @CurrentUser() user: ClerkRequestUser,
     @UploadedFile() file: Express.Multer.File,
-    @Body('reportDate') reportDate: string,
+    @Body() body: UploadReportDto,
   ) {
     const report = await this.reportsService.uploadReport(
       user,
       file,
-      reportDate,
+      body.reportDate,
     );
     return { report };
   }
@@ -98,9 +100,9 @@ export class ReportsController {
   async postChat(
     @CurrentUser() user: ClerkRequestUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { message?: string },
+    @Body() body: PostChatDto,
   ) {
-    return this.reportsService.postChat(user, id, body?.message ?? '');
+    return this.reportsService.postChat(user, id, body.message);
   }
 
   @Get(':id')
