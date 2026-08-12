@@ -5,7 +5,7 @@ import { ClerkRequestUser } from '../auth/clerk.guard';
 import { DbHealthMetric } from '../common/dto/database.types';
 import { AppCacheService } from '../common/cache/app-cache.service';
 
-const METRICS_TTL_MS = 5 * 60_000;
+const METRICS_TTL_MS = 60_000;
 
 @Injectable()
 export class MetricsService {
