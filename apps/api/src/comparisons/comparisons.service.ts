@@ -107,6 +107,14 @@ export class ComparisonsService {
     }
 
     const typed = reports as DbHealthReport[];
+    const incomplete = typed.filter((r) => r.processing_status !== 'completed');
+    if (incomplete.length > 0) {
+      throw new BadRequestException({
+        code: 'REPORTS_NOT_READY',
+        message: 'Both reports must be fully processed before comparing.',
+      });
+    }
+
     const older =
       typed[0].report_date <= typed[1].report_date ? typed[0] : typed[1];
     const newer = older.id === typed[0].id ? typed[1] : typed[0];
