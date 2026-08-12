@@ -77,3 +77,7 @@ The API also upserts the user on first authenticated request, so local developme
 3. Poll processing status until analysis completes
 4. Review charts on `/dashboard`, details on `/reports`
 5. Compare two completed reports for progress diffs
+
+## Privacy note (AI)
+
+Report analysis, comparisons, and report chat send lab metrics / limited OCR excerpts to Google Gemini. Chat prompts use a system instruction plus delimited untrusted data tags; do not send more PHI than needed for the feature.
