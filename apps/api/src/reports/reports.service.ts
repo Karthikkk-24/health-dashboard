@@ -89,6 +89,31 @@ export class ReportsService {
         message: 'Report date is required.',
       });
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+      throw new BadRequestException({
+        code: 'INVALID_REPORT_DATE',
+        message: 'Report date must be YYYY-MM-DD.',
+      });
+    }
+    const parsed = new Date(`${reportDate}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException({
+        code: 'INVALID_REPORT_DATE',
+        message: 'Report date must be a valid calendar date.',
+      });
+    }
+    const now = new Date();
+    const todayUtc = Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+    );
+    if (parsed.getTime() > todayUtc) {
+      throw new BadRequestException({
+        code: 'INVALID_REPORT_DATE',
+        message: 'Report date cannot be in the future.',
+      });
+    }
     if (file.size > 20 * 1024 * 1024) {
       throw new BadRequestException({
         code: 'FILE_TOO_LARGE',
