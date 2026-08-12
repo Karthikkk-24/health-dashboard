@@ -4,6 +4,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClerkClient } from '@clerk/backend';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DbUser } from '../common/dto/database.types';
 import { enrichProfile } from '../pdf/health-insights';
@@ -26,12 +28,18 @@ export type HealthProfileUpdate = {
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private readonly clerk;
 
   constructor(
     private readonly supabase: SupabaseService,
     private readonly cache: AppCacheService,
     private readonly riskService: RiskService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.clerk = createClerkClient({
+      secretKey: this.config.getOrThrow<string>('CLERK_SECRET_KEY'),
+    });
+  }
 
   async ensureUser(
     clerkId: string,
@@ -314,13 +322,101 @@ export class UsersService {
         .filter(Boolean);
 
       if (paths.length > 0) {
-        await this.supabase.db.storage.from('health-reports').remove(paths);
+        const { error: storageError } = await this.supabase.db.storage
+          .from('health-reports')
+          .remove(paths);
+        if (storageError) {
+          this.logger.error(
+            `Storage cleanup failed for ${clerkId}: ${storageError.message}`,
+          );
+          throw new BadRequestException({
+            code: 'DELETE_STORAGE_FAILED',
+            message: 'Could not delete stored reports. Please try again.',
+          });
+        }
       }
     }
 
-    await this.supabase.db.from('report_comparisons').delete().eq('user_id', user.id);
-    await this.supabase.db.from('health_reports').delete().eq('user_id', user.id);
+    const { error: comparisonsError } = await this.supabase.db
+      .from('report_comparisons')
+      .delete()
+      .eq('user_id', user.id);
+    if (comparisonsError) {
+      throw new BadRequestException({
+        code: 'DELETE_COMPARISONS_FAILED',
+        message: 'Could not delete comparisons. Please try again.',
+      });
+    }
+
+    const { error: reportsError } = await this.supabase.db
+      .from('health_reports')
+      .delete()
+      .eq('user_id', user.id);
+    if (reportsError) {
+      throw new BadRequestException({
+        code: 'DELETE_REPORTS_FAILED',
+        message: 'Could not delete reports. Please try again.',
+      });
+    }
+
+    // Wipe residual profile PHI then remove the users row (#10).
+    const { error: wipeError } = await this.supabase.db
+      .from('users')
+      .update({
+        email: `${clerkId}@deleted.local`,
+        full_name: null,
+        avatar_url: null,
+        date_of_birth: null,
+        sex: null,
+        height_cm: null,
+        weight_kg: null,
+        activity_level: null,
+        smoker: null,
+        has_diabetes: null,
+        on_bp_medication: null,
+        notification_preferences: { email: false, report_ready: false },
+      })
+      .eq('id', user.id);
+    if (wipeError) {
+      this.logger.error(
+        `Profile wipe failed for ${clerkId}: ${wipeError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'DELETE_PROFILE_FAILED',
+        message: 'Could not erase profile data. Please try again.',
+      });
+    }
+
+    const { error: userDeleteError } = await this.supabase.db
+      .from('users')
+      .delete()
+      .eq('id', user.id);
+    if (userDeleteError) {
+      this.logger.error(
+        `User row delete failed for ${clerkId}: ${userDeleteError.message}`,
+      );
+      throw new BadRequestException({
+        code: 'DELETE_USER_FAILED',
+        message: 'Could not erase account record. Please try again.',
+      });
+    }
+
     this.cache.invalidateUser(user.id);
+
+    try {
+      await this.clerk.users.deleteUser(clerkId);
+    } catch (error) {
+      this.logger.error(
+        `Clerk account delete failed for ${clerkId}: ${
+          error instanceof Error ? error.message : 'unknown'
+        }`,
+      );
+      throw new BadRequestException({
+        code: 'DELETE_CLERK_FAILED',
+        message:
+          'Local health data was erased, but the sign-in account could not be deleted. Contact support.',
+      });
+    }
   }
 
   async upsertFromClerkWebhook(payload: {

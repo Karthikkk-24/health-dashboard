@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { ApiError } from '@/lib/api';
 import type { UserProfile } from '@/types/health';
 import { Card } from '@/components/ui/Card';
@@ -31,6 +31,7 @@ function bmiPreview(heightCm: string, weightKg: string): string | null {
 
 export default function SettingsPage() {
   const { user } = useUser();
+  const { signOut } = useClerk();
   const meQuery = useMe();
   const updateProfile = useUpdateProfile();
   const deleteAllData = useDeleteAllData();
@@ -102,7 +103,8 @@ export default function SettingsPage() {
       await deleteAllData.mutateAsync();
       setConfirmOpen(false);
       setHydrated(false);
-      setMessage('All health data deleted.');
+      setMessage('All health data and your account were deleted. Signing out…');
+      await signOut({ redirectUrl: '/' });
     } catch (err) {
       setMessage(
         err instanceof ApiError ? err.message : 'Failed to delete data.',
@@ -293,11 +295,12 @@ export default function SettingsPage() {
       <Card className="space-y-4 border-danger/40">
         <h2 className="text-lg font-semibold text-danger">Danger zone</h2>
         <p className="text-sm text-muted">
-          Permanently delete all uploaded reports, metrics, analyses, and
-          comparisons for your account. This cannot be undone.
+          Permanently delete all uploaded reports, metrics, analyses,
+          comparisons, your health profile, and your sign-in account. This
+          cannot be undone.
         </p>
         <Button variant="danger" onClick={() => setConfirmOpen(true)}>
-          Delete all health data
+          Delete all data and account
         </Button>
       </Card>
 
@@ -306,10 +309,11 @@ export default function SettingsPage() {
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Delete all health data?"
+        title="Delete all data and account?"
       >
         <p className="text-sm text-muted">
-          This removes every report and derived insight tied to your account.
+          This removes every report and derived insight, erases your health
+          profile, and deletes your sign-in account.
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
